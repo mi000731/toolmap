@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣幼兒園資訊地圖</title>
+    
+    <!-- OpenLayers CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <!-- OpenLayers JS -->
+    <script src="https://cdn.jsdelivr.net/npm/ol@v9.2.4/dist/ol.js"></script>
+    
+    <style>
+        /* 自定義樣式 */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            overflow: hidden; /* 防止滾動 */
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #f0f0f0;
+        }
+        /* OpenLayers 彈出視窗樣式 */
+        .ol-popup {
+            position: absolute;
+            background-color: white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #cccccc;
+            bottom: 12px;
+            left: -50px;
+            min-width: 320px;
+            max-width: 400px;
+            transform: translateX(-50%);
+        }
+        .ol-popup:after, .ol-popup:before {
+            top: 100%;
+            border: solid transparent;
+            content: " ";
+            height: 0;
+            width: 0;
+            position: absolute;
+            pointer-events: none;
+        }
+        .ol-popup:after {
+            border-top-color: white;
+            border-width: 10px;
+            left: 50%;
+            margin-left: -10px;
+        }
+        .ol-popup:before {
+            border-top-color: #cccccc;
+            border-width: 11px;
+            left: 50%;
+            margin-left: -11px;
+        }
+        .ol-popup-closer {
+            text-decoration: none;
+            position: absolute;
+            top: 2px;
+            right: 8px;
+            font-size: 20px;
+        }
+        .ol-popup-closer:after {
+            content: "✖";
+        }
+        /* 避免 Tailwind CSS 影響 OpenLayers 控制項 */
+        .ol-control button {
+            background-color: rgba(255,255,255,0.8) !important;
+            color: #333 !important;
+            border: 1px solid #ccc !important;
+        }
+        .ol-control button:hover {
+            background-color: rgba(255,255,255,1) !important;
+        }
+        /* 滾動條樣式 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        /* 當前位置標記動畫 */
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+            }
+        }
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="app" class="relative h-screen w-screen">
+        <!-- 地圖容器 -->
+        <main class="w-full h-full relative">
+            <div id="map"></div>
+            
+            <!-- 錯誤/提示訊息 -->
+            <div id="notification" class="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-yellow-500 text-white text-sm py-2 px-4 rounded-lg shadow-lg hidden">
+                無法取得您的位置，將顯示全台地圖。
+            </div>
+
+            <!-- 彈出視窗容器 -->
+            <div id="popup" class="ol-popup">
+                <a href="#" id="popup-closer" class="ol-popup-closer"></a>
+                <div id="popup-content"></div>
+            </div>
+            
+            <!-- 當前位置標記 (HTML Overlay) -->
+            <div id="user-location" class="absolute w-4 h-4 -translate-x-1/2 -translate-y-1/2 hidden">
+                <div class="w-full h-full rounded-full bg-blue-600 border-2 border-white shadow-md pulse-dot"></div>
+            </div>
+
+            <!-- 篩選按鈕 -->
+            <button id="open-filter-modal" class="absolute top-4 right-4 z-10 bg-blue-600 text-white py-2 px-4 rounded-lg shadow-lg hover:bg-blue-700 transition-colors duration-300 flex items-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+                </svg>
+                <span>篩選</span>
+            </button>
+
+            <!-- 圖例 -->
+            <div id="legend" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-md">
+                <div class="flex items-center justify-center space-x-2 md:space-x-4 text-xs md:text-sm">
+                    <div class="flex items-center"><span class="h-3 w-3 rounded-full bg-green-500 mr-1.5 border border-gray-400"></span>公立</div>
+                    <div class="flex items-center"><span class="h-3 w-3 rounded-full bg-blue-500 mr-1.5 border border-gray-400"></span>私立</div>
+                    <div class="flex items-center"><span class="h-3 w-3 rounded-full bg-teal-500 mr-1.5 border border-gray-400"></span>準公共</div>
+                    <div class="flex items-center"><span class="h-3 w-3 rounded-full bg-yellow-500 mr-1.5 border border-gray-400"></span>非營利</div>
+                    <div class="flex items-center"><span class="h-3 w-3 rounded-full bg-gray-500 mr-1.5 border border-gray-400"></span>停業</div>
+                    <div class="flex items-center"><span class="h-3 w-3 rounded-full border-2 border-red-500 bg-white mr-1.5"></span>有裁罰</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 篩選 Modal -->
+    <div id="filter-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-800">篩選條件</h2>
+                <button id="close-filter-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+            </div>
+            <div class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <!-- 地區篩選 -->
+                <div class="mb-4">
+                    <label for="city-select" class="block text-sm font-medium text-gray-700 mb-1">縣市</label>
+                    <select id="city-select" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">所有縣市</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="district-select" class="block text-sm font-medium text-gray-700 mb-1">行政區</label>
+                    <select id="district-select" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">所有行政區</option>
+                    </select>
+                </div>
+                <!-- 關鍵字搜尋 -->
+                <div class="mb-4">
+                    <label for="keyword-search" class="block text-sm font-medium text-gray-700 mb-1">關鍵字搜尋</label>
+                    <input type="text" id="keyword-search" placeholder="名稱、負責人、地址" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <!-- 月費範圍 -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">月費範圍</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="number" id="min-fee" placeholder="最低" class="w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                        <span>-</span>
+                        <input type="number" id="max-fee" placeholder="最高" class="w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                </div>
+                <!-- 其他篩選 -->
+                <div class="mb-4 space-y-2">
+                    <div class="flex items-center">
+                        <input id="has-penalty" type="checkbox" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                        <label for="has-penalty" class="ml-2 block text-sm text-gray-900">僅顯示有裁罰紀錄</label>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 bg-gray-50 border-t rounded-b-lg flex space-x-2">
+                <button id="filter-btn" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    套用篩選
+                </button>
+                <button id="reset-btn" class="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">
+                    重設
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // --- 模擬資料 ---
+        const kindergartenData = [
+            { id: "A001", name: "臺北市私立仁愛幼兒園", personInCharge: "王大明", contact: "(02)2700-1234", address: "臺北市大安區仁愛路四段101號", city: "臺北市", district: "大安區", type: "私立", coordinates: [121.554, 25.038], fees: { monthly: 18000, details: "註冊費 36000/學期, 材料費 5000/學期" }, capacity: 120, facilities: { totalArea: "600 m²", indoor: "400 m²", outdoor: "200 m²" }, schoolBus: "有，3輛", penalty: true, penaltyRecords: "2023-08-15: 師生比不符，罰款6000元", subsidy: true, quasiPublic: false },
+            { id: "A002", name: "臺北市中山區市立實驗幼兒園", personInCharge: "陳美玲", contact: "(02)2591-5678", address: "臺北市中山區中山北路三段59號", city: "臺北市", district: "中山區", type: "公立", coordinates: [121.521, 25.064], fees: { monthly: 1000, details: "免註冊費，僅收活動材料費" }, capacity: 150, facilities: { totalArea: "1200 m²", indoor: "800 m²", outdoor: "400 m²" }, schoolBus: "無", penalty: false, penaltyRecords: "", subsidy: true, quasiPublic: false },
+            { id: "B001", name: "新北市板橋區準公共幼兒園", personInCharge: "李文", contact: "(02)8969-9876", address: "新北市板橋區文化路一段30號", city: "新北市", district: "板橋區", type: "準公共", coordinates: [121.463, 25.014], fees: { monthly: 3000, details: "政府補助後家長負擔費用" }, capacity: 90, facilities: { totalArea: "450 m²", indoor: "300 m²", outdoor: "150 m²" }, schoolBus: "有，1輛", penalty: false, penaltyRecords: "", subsidy: true, quasiPublic: true },
+            { id: "C001", name: "桃園市非營利幼兒園", personInCharge: "張靜宜", contact: "(03)332-5432", address: "桃園市桃園區縣府路1號", city: "桃園市", district: "桃園區", type: "非營利", coordinates: [121.301, 24.993], fees: { monthly: 2000, details: "第一胎費用" }, capacity: 100, facilities: { totalArea: "800 m²", indoor: "500 m²", outdoor: "300 m²" }, schoolBus: "有，2輛", penalty: false, penaltyRecords: "", subsidy: true, quasiPublic: false },
+            { id: "C002", name: "桃園市八德區大成幼兒園", personInCharge: "林志明", contact: "(03)366-1234", address: "桃園市八德區建國路1號", city: "桃園市", district: "八德區", type: "公立", coordinates: [121.295, 24.957], fees: { monthly: 1000, details: "免註冊費" }, capacity: 80, facilities: { totalArea: "750 m²", indoor: "500 m²", outdoor: "250 m²" }, schoolBus: "無", penalty: false, penaltyRecords: "", subsidy: true, quasiPublic: false },
+            { id: "D001", name: "臺中市西屯區快樂寶貝幼兒園", personInCharge: "黃小英", contact: "(04)2258-8888", address: "臺中市西屯區臺灣大道三段99號", city: "臺中市", district: "西屯區", type: "私立", coordinates: [120.646, 24.164], fees: { monthly: 22000, details: "包含註冊費、月費、活動費" }, capacity: 200, facilities: { totalArea: "1500 m²", indoor: "1000 m²", outdoor: "500 m²" }, schoolBus: "有，5輛", penalty: true, penaltyRecords: "2024-01-20: 超收學生，罰款12000元", subsidy: true, quasiPublic: false },
+            { id: "E001", name: "高雄市苓雅區ABC國際幼兒園", personInCharge: "Robert Chen", contact: "(07)336-1111", address: "高雄市苓雅區四維三路2號", city: "高雄市", district: "苓雅區", type: "私立", coordinates: [120.302, 22.620], fees: { monthly: 25000, details: "全美語教學" }, capacity: 80, facilities: { totalArea: "500 m²", indoor: "500 m²", outdoor: "無" }, schoolBus: "無", penalty: false, penaltyRecords: "", subsidy: false, quasiPublic: false },
+            { id: "F001", name: "臺南市安平區已停業幼兒園", personInCharge: "N/A", contact: "N/A", address: "臺南市安平區古堡街1號", city: "臺南市", district: "安平區", type: "停業", coordinates: [120.160, 22.990], fees: { monthly: 0, details: "" }, capacity: 0, facilities: { totalArea: "N/A", indoor: "N/A", outdoor: "N/A" }, schoolBus: "N/A", penalty: false, penaltyRecords: "", subsidy: false, quasiPublic: false }
+        ];
+
+        // --- OpenLayers 地圖設定 ---
+        
+        // 顏色定義
+        const colors = {
+            '公立': 'rgba(34, 197, 94, 0.9)',    // green-500
+            '私立': 'rgba(59, 130, 246, 0.9)',    // blue-500
+            '準公共': 'rgba(20, 184, 166, 0.9)',  // teal-500
+            '非營利': 'rgba(234, 179, 8, 0.9)',   // yellow-500
+            '停業': 'rgba(107, 114, 128, 0.8)', // gray-500
+            'penaltyStroke': 'rgba(239, 68, 68, 1)' // red-500
+        };
+
+        // 建立圖示樣式快取
+        const styleCache = {};
+        function getStyle(feature) {
+            const type = feature.get('type');
+            const hasPenalty = feature.get('penalty');
+            const styleKey = `${type}-${hasPenalty}`;
+
+            if (!styleCache[styleKey]) {
+                styleCache[styleKey] = new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 8,
+                        fill: new ol.style.Fill({
+                            color: colors[type] || colors['停業']
+                        }),
+                        stroke: new ol.style.Stroke({
+                            color: hasPenalty ? colors.penaltyStroke : '#ffffff',
+                            width: hasPenalty ? 3 : 2
+                        })
+                    })
+                });
+            }
+            return styleCache[styleKey];
+        }
+        
+        const osmLayer = new ol.layer.Tile({
+            source: new ol.source.OSM()
+        });
+
+        const vectorSource = new ol.source.Vector();
+        const vectorLayer = new ol.layer.Vector({
+            source: vectorSource,
+            style: getStyle
+        });
+
+        // 地圖初始化 (預設視圖為台灣)
+        const map = new ol.Map({
+            target: 'map',
+            layers: [osmLayer, vectorLayer],
+            view: new ol.View({
+                center: ol.proj.fromLonLat([120.9, 23.9]), // 台灣中心點
+                zoom: 8 
+            }),
+            controls: [
+                new ol.control.Zoom(),
+                new ol.control.Rotate(),
+                new ol.control.Attribution({
+                    collapsible: false
+                })
+            ]
+        });
+
+        // --- 彈出視窗 (Popup) ---
+        const popupContainer = document.getElementById('popup');
+        const popupContent = document.getElementById('popup-content');
+        const popupCloser = document.getElementById('popup-closer');
+
+        const infoOverlay = new ol.Overlay({
+            element: popupContainer,
+            autoPan: {
+                animation: {
+                    duration: 250,
+                },
+            },
+        });
+        map.addOverlay(infoOverlay);
+
+        popupCloser.onclick = function () {
+            infoOverlay.setPosition(undefined);
+            popupCloser.blur();
+            return false;
+        };
+        
+        // --- 使用者位置標記 ---
+        const userLocationElement = document.getElementById('user-location');
+        const userLocationOverlay = new ol.Overlay({
+            element: userLocationElement,
+            positioning: 'center-center',
+            stopEvent: false
+        });
+        map.addOverlay(userLocationOverlay);
+
+
+        map.on('singleclick', function (evt) {
+            const feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
+                return feature;
+            });
+            if (feature) {
+                const coordinates = feature.getGeometry().getCoordinates();
+                const data = feature.get('data');
+                
+                let penaltyInfo = data.penalty 
+                    ? `<div class="mt-2 p-2 bg-red-100 border-l-4 border-red-500 text-red-700">
+                         <p class="font-bold">裁罰記錄</p>
+                         <p>${data.penaltyRecords}</p>
+                       </div>`
+                    : '<p class="text-sm text-gray-500">無裁罰記錄</p>';
+
+                popupContent.innerHTML = `
+                    <h3 class="text-lg font-bold text-gray-800">${data.name}</h3>
+                    <p class="text-sm text-gray-600 mb-2">${data.type}</p>
+                    <div class="space-y-1 text-sm">
+                        <p><strong>負責人:</strong> ${data.personInCharge}</p>
+                        <p><strong>地址:</strong> ${data.address}</p>
+                        <p><strong>聯絡方式:</strong> ${data.contact}</p>
+                        <p><strong>月費:</strong> ${data.fees.monthly > 0 ? data.fees.monthly.toLocaleString() + ' 元' : 'N/A'}</p>
+                        <p class="text-xs text-gray-500">${data.fees.details}</p>
+                        <p><strong>核定人數:</strong> ${data.capacity} 人</p>
+                        <p><strong>設施:</strong> ${data.facilities.totalArea} (室內 ${data.facilities.indoor}, 室外 ${data.facilities.outdoor})</p>
+                        <p><strong>專用車:</strong> ${data.schoolBus}</p>
+                    </div>
+                    ${penaltyInfo}
+                `;
+                infoOverlay.setPosition(coordinates);
+            } else {
+                infoOverlay.setPosition(undefined);
+            }
+        });
+
+        // --- 篩選與互動邏輯 (jQuery) ---
+        $(document).ready(function() {
+            let allFeatures = [];
+
+            function loadData() {
+                kindergartenData.forEach(data => {
+                    const feature = new ol.Feature({
+                        geometry: new ol.geom.Point(ol.proj.fromLonLat(data.coordinates)),
+                        type: data.type,
+                        penalty: data.penalty,
+                        data: data
+                    });
+                    allFeatures.push(feature);
+                });
+                vectorSource.addFeatures(allFeatures);
+                populateFilters();
+            }
+
+            function populateFilters() {
+                const cities = {};
+                kindergartenData.forEach(d => {
+                    if (!cities[d.city]) {
+                        cities[d.city] = new Set();
+                    }
+                    cities[d.city].add(d.district);
+                });
+
+                const $citySelect = $('#city-select');
+                Object.keys(cities).sort().forEach(city => {
+                    $citySelect.append(`<option value="${city}">${city}</option>`);
+                });
+
+                $citySelect.on('change', function() {
+                    const selectedCity = $(this).val();
+                    const $districtSelect = $('#district-select');
+                    $districtSelect.html('<option value="">所有行政區</option>');
+                    if (selectedCity && cities[selectedCity]) {
+                        [...cities[selectedCity]].sort().forEach(district => {
+                            $districtSelect.append(`<option value="${district}">${district}</option>`);
+                        });
+                    }
+                });
+            }
+
+            function applyFilters() {
+                const city = $('#city-select').val();
+                const district = $('#district-select').val();
+                const keyword = $('#keyword-search').val().toLowerCase();
+                const minFee = parseInt($('#min-fee').val()) || 0;
+                const maxFee = parseInt($('#max-fee').val()) || Infinity;
+                const hasPenalty = $('#has-penalty').is(':checked');
+                
+                vectorSource.clear();
+                
+                const filteredFeatures = allFeatures.filter(feature => {
+                    const data = feature.get('data');
+                    
+                    if (city && data.city !== city) return false;
+                    if (district && data.district !== district) return false;
+                    if (hasPenalty && !data.penalty) return false;
+                    
+                    const fee = data.fees.monthly;
+                    if (fee < minFee || fee > maxFee) return false;
+                    
+                    if (keyword) {
+                        const nameMatch = data.name.toLowerCase().includes(keyword);
+                        const personMatch = data.personInCharge.toLowerCase().includes(keyword);
+                        const addressMatch = data.address.toLowerCase().includes(keyword);
+                        if (!nameMatch && !personMatch && !addressMatch) return false;
+                    }
+                    
+                    return true;
+                });
+                
+                vectorSource.addFeatures(filteredFeatures);
+                $('#filter-modal').addClass('hidden'); // 應用後關閉 modal
+            }
+            
+            function resetFilters() {
+                $('#city-select').val('');
+                $('#district-select').html('<option value="">所有行政區</option>').val('');
+                $('#keyword-search').val('');
+                $('#min-fee').val('');
+                $('#max-fee').val('');
+                $('#has-penalty').prop('checked', false);
+                vectorSource.clear();
+                vectorSource.addFeatures(allFeatures);
+            }
+
+            // Modal 控制
+            $('#open-filter-modal').on('click', function() {
+                $('#filter-modal').removeClass('hidden');
+            });
+            $('#close-filter-modal').on('click', function() {
+                $('#filter-modal').addClass('hidden');
+            });
+
+            $('#filter-btn').on('click', applyFilters);
+            $('#reset-btn').on('click', resetFilters);
+            
+            // --- 地理定位邏輯 ---
+            function initializeUserLocation() {
+                // Geolocation API 只能在安全(HTTPS)或本地(localhost)環境下運作
+                // 直接開啟 file:///... 將會失敗
+                if (!navigator.geolocation) {
+                    $('#notification').text('您的瀏覽器不支援地理定位').removeClass('hidden');
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const userCoords = [position.coords.longitude, position.coords.latitude];
+                        const userPosition = ol.proj.fromLonLat(userCoords);
+                        
+                        // 移動地圖視圖到使用者位置
+                        map.getView().animate({
+                            center: userPosition,
+                            zoom: 14,
+                            duration: 1500 // 動畫時間
+                        });
+                        
+                        // 顯示並設定使用者位置標記
+                        userLocationOverlay.setPosition(userPosition);
+                        $('#user-location').removeClass('hidden');
+                    },
+                    (error) => {
+                        console.warn(`地理定位失敗: ${error.message}`);
+                        $('#notification').removeClass('hidden');
+                        // 若失敗，地圖將維持預設的全台灣視圖
+                    }
+                );
+            }
+
+            // 初始載入
+            loadData();
+            initializeUserLocation();
+        });
+
+    </script>
+</body>
+</html>
