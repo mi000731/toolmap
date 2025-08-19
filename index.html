@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>超認真工業指南針52</title>
+    <title>超認真工業指南針</title>
     
     <!-- OpenLayers CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css">
@@ -204,11 +204,17 @@
         
         <!-- 新增店家 Modal -->
         <div id="add-location-modal" class="hidden absolute top-4 left-4 z-40 bg-white shadow-2xl w-full max-w-md rounded-lg flex flex-col" style="max-height: calc(100vh - 2rem);">
-            <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
-                <h2 class="text-xl font-bold text-gray-800">新增店家</h2>
-                <button id="close-add-location-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
-            </div>
             <form id="add-location-form" class="flex-grow flex flex-col overflow-hidden">
+                <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
+                    <h2 class="text-xl font-bold text-gray-800">新增店家</h2>
+                    <div class="flex items-center space-x-2">
+                         <button id="submit-location-btn" type="submit" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center w-28">
+                            <span class="submit-text">送出審核</span>
+                            <span class="spinner hidden animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
+                        </button>
+                        <button id="close-add-location-modal" type="button" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+                    </div>
+                </div>
                 <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
                     <p class="text-sm text-gray-600">請填寫店家資訊，或在地圖上拖曳圖釘以調整位置。</p>
                     <div>
@@ -252,12 +258,6 @@
                         <label class="block text-sm font-medium text-gray-700">網頁</label>
                         <input type="url" id="add-website" name="website" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com">
                     </div>
-                </div>
-                <div class="p-4 bg-gray-50 border-t flex justify-end flex-shrink-0">
-                    <button id="submit-location-btn" type="submit" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center w-28">
-                        <span class="submit-text">送出審核</span>
-                        <span class="spinner hidden animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
-                    </button>
                 </div>
             </form>
         </div>
@@ -453,7 +453,7 @@
             let userProfile = {};
             const sheetId = '1MfZimoJ04URFzX2Y3F5KsFBZe6ccrH0TuSSL6letLcM';
             const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
-            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzItCIzcKlRNz5bWSatCXIilzBrcOlyxnpqKfOzWXykoAg1-5rxXUs7FtXfKZJzCh_R/exec';
+            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxNg8_vdkukGE6Y55QHJmxpVqrpbbnpYyvkizbymaEKDB2MyeGvOKMb-jsczRqlIIHv/exec';
 
             function showNotification(message, type = 'info') {
                 const $notification = $('#notification');
@@ -520,16 +520,18 @@
             }
 
             function populateFiltersAndLegend() {
-                const $categorySelect = $('#category-select, #add-category');
+                const $categorySelect = $('#category-select');
+                const $addCategorySelect = $('#add-category');
                 const $legendContent = $('#legend-content');
+                
                 $categorySelect.html('<option value="">所有分類</option>');
-                 $('#add-category').html(''); // Clear add-category dropdown specifically
+                $addCategorySelect.html('');
                 $legendContent.html('');
                 
                 allCategories.forEach(category => {
                      if (categoryColors[category]) {
-                        $('#category-select').append(`<option value="${category}">${category}</option>`);
-                        $('#add-category').append($('<option>', { value: category, text: category }));
+                        $categorySelect.append(`<option value="${category}">${category}</option>`);
+                        $addCategorySelect.append($('<option>', { value: category, text: category }));
                         const color = categoryColors[category];
                         $legendContent.append(`<div class="flex items-center"><span class="h-3 w-3 rounded-full mr-1.5 border border-gray-400" style="background-color: ${color}"></span>${category}</div>`);
                      }
@@ -561,6 +563,26 @@
                 }
                 return false;
             }
+            
+            // *** NEW *** Levenshtein distance function for fuzzy search
+            function levenshteinDistance(a, b) {
+                if (a.length === 0) return b.length;
+                if (b.length === 0) return a.length;
+                const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
+                for (let i = 0; i <= a.length; i++) { matrix[0][i] = i; }
+                for (let j = 0; j <= b.length; j++) { matrix[j][0] = j; }
+                for (let j = 1; j <= b.length; j++) {
+                    for (let i = 1; i <= a.length; i++) {
+                        const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
+                        matrix[j][i] = Math.min(
+                            matrix[j][i - 1] + 1,        // deletion
+                            matrix[j - 1][i] + 1,        // insertion
+                            matrix[j - 1][i - 1] + indicator, // substitution
+                        );
+                    }
+                }
+                return matrix[b.length][a.length];
+            }
 
             function applyFilters() {
                 const category = $('#category-select').val();
@@ -570,10 +592,17 @@
                 const filteredFeatures = allFeatures.filter(feature => {
                     if (category && feature.get('category') !== category) return false;
                     if (isOpenOnly && !isCurrentlyOpen(feature.get('hours'))) return false;
+                    
+                    // *** MODIFIED *** Use fuzzy search
                     if (keyword) {
-                        const nameMatch = feature.get('name').toLowerCase().includes(keyword);
-                        const addressMatch = feature.get('address').toLowerCase().includes(keyword);
-                        const productMatch = (feature.get('product') || '').toLowerCase().includes(keyword);
+                        const name = feature.get('name').toLowerCase();
+                        const address = feature.get('address').toLowerCase();
+                        const product = (feature.get('product') || '').toLowerCase();
+                        
+                        const nameMatch = levenshteinDistance(name, keyword) <= 1 || name.includes(keyword);
+                        const addressMatch = levenshteinDistance(address, keyword) <= 1 || address.includes(keyword);
+                        const productMatch = levenshteinDistance(product, keyword) <= 1 || product.includes(keyword);
+
                         if (!nameMatch && !addressMatch && !productMatch) return false;
                     }
                     return true;
@@ -804,27 +833,23 @@
                 e.preventDefault(); 
                 const $submitBtn = $('#submit-location-btn');
                 
-                // *** VALIDATION LOGIC STARTS HERE ***
                 let isValid = true;
                 const $contactInput = $('#add-contact');
                 const $productInput = $('#add-product');
 
-                // Reset previous validation styles
                 $contactInput.removeClass('border-red-500');
                 $productInput.removeClass('border-red-500');
 
-                // Validate Contact Number (at least 6 digits)
-                const contactValue = $contactInput.val().replace(/[^0-9]/g, ''); // Remove non-digits
+                const contactValue = $contactInput.val().replace(/[^0-9]/g, '');
                 if (contactValue.length < 6) {
                     showNotification('聯絡方式(電話)至少需要6個數字。', 'error');
                     $contactInput.addClass('border-red-500');
                     isValid = false;
                 }
 
-                // Validate Product Description (at least 6 characters)
                 const productValue = $productInput.val().trim();
                 if (productValue.length < 6) {
-                    if (isValid) { // Show only one notification at a time to avoid overlap
+                    if (isValid) {
                         showNotification('公司產品至少需要6個文字。', 'error');
                     }
                     $productInput.addClass('border-red-500');
@@ -832,9 +857,8 @@
                 }
 
                 if (!isValid) {
-                    return; // Stop form submission if validation fails
+                    return;
                 }
-                // *** VALIDATION LOGIC ENDS HERE ***
 
                 $submitBtn.prop('disabled', true).find('.submit-text').addClass('hidden');
                 $submitBtn.find('.spinner').removeClass('hidden');
