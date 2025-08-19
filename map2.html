@@ -12,7 +12,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.js"></script>
     
     <!-- OpenLayers JS -->
     <script src="https://cdn.jsdelivr.net/npm/ol@v9.2.4/dist/ol.js"></script>
@@ -147,7 +147,7 @@
             <div id="map"></div>
             
             <!-- 錯誤/提示訊息 -->
-            <div id="notification" class="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-yellow-500 text-white text-sm py-2 px-4 rounded-lg shadow-lg hidden">
+            <div id="notification" class="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-yellow-500 text-white text-sm py-2 px-4 rounded-lg shadow-lg hidden transition-all duration-300">
                 訊息
             </div>
 
@@ -265,61 +265,63 @@
     </div>
     
     <!-- 新增店家 Modal -->
-    <div id="add-location-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-start p-4 hidden">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+    <div id="add-location-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div class="p-6 border-b flex justify-between items-center">
                 <h2 class="text-xl font-bold text-gray-800">新增店家</h2>
                 <button id="close-add-location-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
             </div>
-            <div class="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar space-y-4">
-                <p class="text-sm text-gray-600">請填寫店家資訊。地址已自動帶入，可手動修改或拖動地圖上的紅色標記調整。</p>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">店名 <span class="text-red-500">*</span></label>
-                    <input type="text" id="add-name" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">類別 <span class="text-red-500">*</span></label>
-                    <select id="add-category" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm"></select>
-                </div>
-                 <div>
-                    <label class="block text-sm font-medium text-gray-700">地址 <span class="text-red-500">*</span></label>
-                    <input type="text" id="add-address" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">聯絡方式(電話) <span class="text-red-500">*</span></label>
-                    <input type="text" id="add-contact" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="格式: 02-12345678">
-                </div>
-                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">營業時間 <span class="text-red-500">*</span></label>
-                    <div id="hours-container" class="space-y-2">
-                        <!-- JS will generate time slots here -->
+            <form id="add-location-form">
+                <div class="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar space-y-4">
+                    <p class="text-sm text-gray-600">請填寫店家資訊。地址已自動帶入，可手動修改或拖動地圖上的紅色標記調整。</p>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">店名 <span class="text-red-500">*</span></label>
+                        <input type="text" id="add-name" name="name" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
                     </div>
-                    <button id="add-time-slot" class="mt-2 text-sm text-blue-600 hover:text-blue-800">+ 新增時段</button>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">類別 <span class="text-red-500">*</span></label>
+                        <select id="add-category" name="category" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required></select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">地址 <span class="text-red-500">*</span></label>
+                        <input type="text" id="add-address" name="address" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">聯絡方式(電話) <span class="text-red-500">*</span></label>
+                        <input type="text" id="add-contact" name="contact" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="格式: 02-12345678" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">營業時間 <span class="text-red-500">*</span></label>
+                        <div id="hours-container" class="space-y-2">
+                            <!-- JS will generate time slots here -->
+                        </div>
+                        <button type="button" id="add-time-slot-btn" class="mt-2 text-sm text-blue-600 hover:text-blue-800">+ 新增時段</button>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">公司產品 <span class="text-red-500">*</span></label>
+                        <textarea id="add-product" name="product" rows="3" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required></textarea>
+                    </div>
+                    <hr>
+                    <p class="text-sm text-gray-500">以下為選填項目</p>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">傳真</label>
+                        <input type="text" id="add-fax" name="fax" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">信箱</label>
+                        <input type="email" id="add-email" name="email" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">網頁</label>
+                        <input type="url" id="add-website" name="website" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com">
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">公司產品 <span class="text-red-500">*</span></label>
-                    <textarea id="add-product" rows="3" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm"></textarea>
+                <div class="p-6 bg-gray-50 border-t rounded-b-lg flex justify-end">
+                    <button id="submit-location-btn" type="submit" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">
+                        送出審核
+                    </button>
                 </div>
-                <hr>
-                <p class="text-sm text-gray-500">以下為選填項目</p>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">傳真</label>
-                    <input type="text" id="add-fax" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">信箱</label>
-                    <input type="email" id="add-email" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                 <div>
-                    <label class="block text-sm font-medium text-gray-700">網頁</label>
-                    <input type="url" id="add-website" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com">
-                </div>
-            </div>
-             <div class="p-6 bg-gray-50 border-t rounded-b-lg flex justify-end">
-                <button id="submit-location-btn" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">
-                    送出審核
-                </button>
-            </div>
+            </form>
         </div>
     </div>
 
@@ -418,7 +420,6 @@
                 const category = originalFeature.get('category');
                 const singleStyleKey = `single_${category}`;
                 
-                // FIX: Do not cache the text part of the style
                 if (!styleCache[singleStyleKey]) {
                      styleCache[singleStyleKey] = new ol.style.Style({
                         image: new ol.style.Circle({
@@ -478,8 +479,11 @@
 
         const infoOverlay = new ol.Overlay({
             element: popupContainer,
-            autoPan: true,
-            autoPanAnimation: { duration: 250 },
+            autoPan: {
+                animation: {
+                    duration: 250,
+                },
+            },
         });
         map.addOverlay(infoOverlay);
 
@@ -515,21 +519,10 @@
                     const data = originalFeature.getProperties();
                     
                     const view = map.getView();
-                    const zoom = 16;
-                    
-                    // FIX: Staged animation for better centering
                     view.animate({
                         center: coordinates,
-                        duration: 500
-                    }, {
-                        zoom: zoom,
+                        zoom: 16,
                         duration: 800
-                    }, () => {
-                        // After animations, calculate final shift
-                        const resolution = view.getResolutionForZoom(zoom);
-                        const mapSize = map.getSize();
-                        const verticalShift = (mapSize[1] / 4) * resolution;
-                        view.centerOn([coordinates[0], coordinates[1] + verticalShift], mapSize, [mapSize[0]/2, mapSize[1]/2]);
                     });
 
                     const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lon}`;
@@ -570,23 +563,35 @@
         // --- 資料與互動邏輯 (jQuery) ---
         $(document).ready(function() {
             let allFeatures = [];
-            let isLoggedIn = false; // 模擬登入狀態
+            let isLoggedIn = false;
             const sheetId = '1MfZimoJ04URFzX2Y3F5KsFBZe6ccrH0TuSSL6letLcM';
             const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
 
-            function showNotification(message, isError = false) {
+            function showNotification(message, type = 'info') {
                 const $notification = $('#notification');
                 $notification.text(message).removeClass('hidden');
-                if (isError) {
-                    $notification.removeClass('bg-yellow-500 bg-blue-500').addClass('bg-red-500');
-                } else {
-                    $notification.removeClass('bg-red-500 bg-yellow-500').addClass('bg-blue-500');
+                
+                $notification.removeClass('bg-blue-500 bg-green-500 bg-red-500 bg-yellow-500');
+
+                switch(type) {
+                    case 'error':
+                        $notification.addClass('bg-red-500');
+                        break;
+                    case 'success':
+                        $notification.addClass('bg-green-500');
+                        break;
+                    case 'warning':
+                         $notification.addClass('bg-yellow-500');
+                        break;
+                    default:
+                        $notification.addClass('bg-blue-500');
                 }
+                
                 setTimeout(() => $notification.addClass('hidden'), 5000);
             }
 
             async function loadData() {
-                showNotification('正在從 Google 試算表載入資料...', false);
+                showNotification('正在從 Google 試算表載入資料...');
                 try {
                     const response = await fetch(sheetUrl);
                     if (!response.ok) {
@@ -630,13 +635,13 @@
                             $('#notification').addClass('hidden');
                         },
                         error: function(err) {
-                             showNotification('解析試算表資料時發生錯誤！', true);
+                             showNotification('解析試算表資料時發生錯誤！', 'error');
                              console.error("PapaParse Parsing Error:", err);
                         }
                     });
 
                 } catch (error) {
-                    showNotification('無法載入 Google 試算表資料！請檢查連結是否已發佈。', true);
+                    showNotification('無法載入 Google 試算表資料！請檢查連結是否已發佈。', 'error');
                     console.error("Fetch Error:", error);
                 }
             }
@@ -649,7 +654,9 @@
                 
                 allCategories.forEach(category => {
                      if (categoryColors[category]) {
-                        $categorySelect.append(`<option value="${category}">${category}</option>`);
+                        $categorySelect.first().append(`<option value="${category}">${category}</option>`);
+                        // Clone the option for the add modal to avoid issues
+                        $('#add-category').append($('<option>', { value: category, text: category }));
                         const color = categoryColors[category];
                         $legendContent.append(`
                             <div class="flex items-center">
@@ -692,8 +699,14 @@
                     }
                     
                     if (currentDay >= startDay && currentDay <= endDay) {
-                        if (currentTime >= startTime && currentTime < endTime) {
-                            return true;
+                         if (endTime < startTime) { // 跨夜
+                            if (currentTime >= startTime || currentTime < endTime) {
+                                return true;
+                            }
+                        } else { // 當日
+                            if (currentTime >= startTime && currentTime < endTime) {
+                                return true;
+                            }
                         }
                     }
                 }
@@ -741,7 +754,6 @@
             $('#close-product-modal').on('click', () => $('#product-modal').addClass('hidden'));
             $('#close-add-location-modal').on('click', () => {
                 $('#add-location-modal').addClass('hidden');
-                // 移除臨時標記
                 if(tempMarker) map.removeOverlay(tempMarker);
                 tempMarker = null;
             });
@@ -756,7 +768,7 @@
                         duration: 800
                     });
                 } else {
-                    showNotification('無法定位您的位置。', true);
+                    showNotification('無法定位您的位置。', 'warning');
                 }
             });
 
@@ -771,64 +783,103 @@
             
             // --- 新增店家功能 ---
             let tempMarker = null;
-            let tempMarkerFeature = null;
+            let tempMarkerCoords = null;
+            
+            // ** START: 新增時段功能 **
+            const createTimeSlot = () => {
+                const timeSlotHtml = `
+                    <div class="time-slot-row grid grid-cols-1 sm:grid-cols-11 gap-2 items-center">
+                        <div class="sm:col-span-4">
+                            <select name="start_day" class="w-full p-2 border border-gray-300 rounded-md text-sm" required>
+                                <option value="週一">週一</option>
+                                <option value="週二">週二</option>
+                                <option value="週三">週三</option>
+                                <option value="週四">週四</option>
+                                <option value="週五">週五</option>
+                                <option value="週六">週六</option>
+                                <option value="週日">週日</option>
+                            </select>
+                        </div>
+                        <div class="hidden sm:block text-center">-</div>
+                        <div class="sm:col-span-4">
+                             <select name="end_day" class="w-full p-2 border border-gray-300 rounded-md text-sm" required>
+                                <option value="週一">週一</option>
+                                <option value="週二">週二</option>
+                                <option value="週三">週三</option>
+                                <option value="週四" selected>週四</option>
+                                <option value="週五">週五</option>
+                                <option value="週六">週六</option>
+                                <option value="週日">週日</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-5">
+                            <input type="time" name="start_time" class="w-full p-2 border border-gray-300 rounded-md" value="09:00" required>
+                        </div>
+                        <div class="hidden sm:block text-center">-</div>
+                        <div class="sm:col-span-5">
+                            <input type="time" name="end_time" class="w-full p-2 border border-gray-300 rounded-md" value="18:00" required>
+                        </div>
+                        <div class="sm:col-span-1 flex justify-end">
+                            <button type="button" class="remove-time-slot-btn text-red-500 hover:text-red-700 p-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                $('#hours-container').append(timeSlotHtml);
+            };
 
-            $('#login-btn').on('click', function() {
-                isLoggedIn = true;
-                $(this).addClass('hidden');
-                $('#add-info').removeClass('hidden');
-                showNotification('已模擬登入，您現在可以新增店家。', false);
+            $('#add-time-slot-btn').on('click', createTimeSlot);
+            
+            $('#hours-container').on('click', '.remove-time-slot-btn', function() {
+                // 如果只剩一個，不清空，而是提示用戶
+                if ($('.time-slot-row').length <= 1) {
+                    showNotification('至少需要一個營業時段。', 'warning');
+                    return;
+                }
+                $(this).closest('.time-slot-row').remove();
             });
+            // ** END: 新增時段功能 **
 
             map.on('contextmenu', function(evt) {
                 if (!isLoggedIn) {
-                    showNotification('請先登入才能新增店家！', true);
+                    showNotification('請先登入才能新增店家！', 'warning');
                     return;
                 }
                 evt.preventDefault();
                 
                 if(tempMarker) map.removeOverlay(tempMarker);
-
-                const coords = evt.coordinate;
-                const lonLat = ol.proj.toLonLat(coords);
+                
+                tempMarkerCoords = evt.coordinate;
+                const lonLat = ol.proj.toLonLat(tempMarkerCoords);
 
                 const markerEl = document.createElement('div');
                 markerEl.className = 'new-location-marker';
+                
                 tempMarker = new ol.Overlay({
                     element: markerEl,
-                    position: coords,
-                    positioning: 'center-center',
+                    position: tempMarkerCoords,
+                    positioning: 'bottom-center',
                     stopEvent: false,
                 });
                 map.addOverlay(tempMarker);
-
-                // 讓標記可拖動
-                let dragInteraction = new ol.interaction.Pointer({
-                    handleDownEvent: function(evt) {
-                        const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f);
-                        // This is a simple way to check if we are dragging the overlay
-                        if (tempMarker && ol.extent.containsCoordinate(tempMarker.getExtent(view.getProjection()), evt.coordinate)) {
-                            return true;
-                        }
-                        return false;
-                    },
-                    handleDragEvent: function(evt) {
-                        tempMarker.setPosition(evt.coordinate);
-                    },
-                    handleUpEvent: function(evt) {
-                        const newCoords = ol.proj.toLonLat(evt.coordinate);
-                        reverseGeocode(newCoords[0], newCoords[1]);
-                    }
-                });
-                // map.addInteraction(dragInteraction); // This part is complex, will simplify for now
-
+                
+                // 重設並打開 Modal
+                $('#add-location-form')[0].reset();
+                $('#hours-container').empty();
+                createTimeSlot(); // 預設新增一個時段
                 reverseGeocode(lonLat[0], lonLat[1]);
                 $('#add-location-modal').removeClass('hidden');
             });
             
             async function reverseGeocode(lon, lat) {
+                // 請替換成您自己的 API Key
+                const apiKey = "YOUR_GOOGLE_MAPS_API_KEY";
                 try {
-                    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=AIzaSyBa9P8XeaoUPUXPqMm8m6NHawZKFpCePqE`);
+                    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${apiKey}&language=zh-TW`);
+                    if (!response.ok) throw new Error('Geocoding API response not OK');
                     const data = await response.json();
                     if (data.results && data.results.length > 0) {
                         $('#add-address').val(data.results[0].formatted_address);
@@ -838,79 +889,90 @@
                 } catch (error) {
                     console.error('Reverse geocoding error:', error);
                     $('#add-address').val('無法自動定位地址');
+                    showNotification('無法解析地址，請手動輸入。', 'warning');
                 }
             }
             
             async function geocode(address) {
+                // 請替換成您自己的 API Key
+                const apiKey = "YOUR_GOOGLE_MAPS_API_KEY";
                 try {
-                    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=AIzaSyBa9P8XeaoUPUXPqMm8m6NHawZKFpCePqE`);
+                    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}&region=TW`);
+                     if (!response.ok) throw new Error('Geocoding API response not OK');
                     const data = await response.json();
                     if (data.results && data.results.length > 0) {
                         const location = data.results[0].geometry.location;
                         const coords = [location.lng, location.lat];
-                        const mapCoords = ol.proj.fromLonLat(coords);
+                        tempMarkerCoords = ol.proj.fromLonLat(coords);
                         if (tempMarker) {
-                            tempMarker.setPosition(mapCoords);
-                            map.getView().animate({ center: mapCoords, zoom: 17 });
+                            tempMarker.setPosition(tempMarkerCoords);
+                            map.getView().animate({ center: tempMarkerCoords, zoom: 17 });
                         }
                     } else {
-                        showNotification('找不到輸入的地址', true);
+                        showNotification('找不到輸入的地址', 'error');
                     }
                 } catch (error) {
                     console.error('Geocoding error:', error);
+                    showNotification('地址解析失敗', 'error');
                 }
             }
 
-            $('#add-address').on('blur', function() {
+            $('#add-address').on('change', function() {
                 if ($(this).val()) {
                     geocode($(this).val());
                 }
             });
 
+            $('#add-location-form').on('submit', function(e) {
+                e.preventDefault(); // 防止表單傳統提交
 
-            $('#submit-location-btn').on('click', function() {
-                const requiredFields = ['#add-name', '#add-category', '#add-address', '#add-contact', '#add-hours', '#add-product'];
-                let isValid = true;
-                requiredFields.forEach(id => {
-                    if (!$(id).val()) {
-                        $(id).addClass('border-red-500');
-                        isValid = false;
-                    } else {
-                        $(id).removeClass('border-red-500');
+                // 收集營業時間
+                let hoursStrings = [];
+                let hoursValid = true;
+                if ($('.time-slot-row').length === 0) {
+                    hoursValid = false;
+                }
+                
+                $('.time-slot-row').each(function() {
+                    const startDay = $(this).find('[name="start_day"]').val();
+                    const endDay = $(this).find('[name="end_day"]').val();
+                    const startTime = $(this).find('[name="start_time"]').val();
+                    const endTime = $(this).find('[name="end_time"]').val();
+                    if(!startDay || !endDay || !startTime || !endTime) {
+                        hoursValid = false;
                     }
+                    hoursStrings.push(`週${startDay}-週${endDay} ${startTime}-${endTime}`);
                 });
 
-                if (!isValid) {
-                    alert('請填寫所有必填欄位 (*)');
+                if (!hoursValid) {
+                    showNotification('請填寫完整的營業時間。', 'error');
                     return;
                 }
                 
-                const newData = {
-                    '工廠名稱': $('#add-name').val(),
-                    '分類': $('#add-category').val(),
-                    '地址': $('#add-address').val(),
-                    '聯絡方式': $('#add-contact').val(),
-                    '營業時間': $('#add-hours').val(),
-                    '公司產品': $('#add-product').val(),
-                    '電話': $('#add-phone').val(),
-                    '傳真': $('#add-fax').val(),
-                    '信箱': $('#add-email').val(),
-                    '網頁': $('#add-website').val(),
-                };
+                const finalHoursString = hoursStrings.join('; ');
+                const lonLat = ol.proj.toLonLat(tempMarkerCoords);
+
+                const formData = new FormData(this);
+                const newData = Object.fromEntries(formData.entries());
+                
+                // 加入經緯度與組合好的營業時間
+                newData.hours = finalHoursString;
+                newData.lon = lonLat[0];
+                newData.lat = lonLat[1];
                 
                 console.log("模擬送出資料:", newData);
-                alert("資料已送出審核！感謝您的貢獻。\n（此為模擬操作，資料並未實際寫入）");
+                showNotification("資料已送出審核！感謝您的貢獻。", 'success');
                 
                 $('#add-location-modal').addClass('hidden');
-                $('#add-location-modal input, #add-location-modal textarea').val('');
-                $('#add-location-modal select').prop('selectedIndex', 0);
+                if(tempMarker) map.removeOverlay(tempMarker);
+                tempMarker = null;
             });
 
 
             // --- 地理定位邏輯 ---
             function initializeUserLocation() {
                 if (!navigator.geolocation) {
-                    showNotification('您的瀏覽器不支援地理定位');
+                    showNotification('您的瀏覽器不支援地理定位', 'warning');
                     return;
                 }
 
@@ -931,7 +993,8 @@
                     (error) => {
                         console.warn(`地理定位失敗: ${error.message}`);
                         showNotification('無法取得您的位置，將顯示全台地圖。');
-                    }
+                    },
+                    { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
                 );
             }
 
@@ -942,12 +1005,16 @@
                 $('.g_id_signin').hide();
                 $('#add-info').removeClass('hidden').addClass('flex');
                 $('#user-name').text(profile.name);
-                showNotification(`歡迎，${profile.name}！您現在可以新增店家。`, false);
+                showNotification(`歡迎，${profile.name}！您現在可以新增店家。`, 'success');
             });
 
             $('#sign-out-btn').on('click', function(e) {
                 e.preventDefault();
                 google.accounts.id.disableAutoSelect();
+                google.accounts.id.revoke($('#user-email').text(), done => {
+                    console.log('User signed out.');
+                });
+
                 isLoggedIn = false;
                 $('.g_id_signin').show();
                 $('#add-info').removeClass('flex').addClass('hidden');
