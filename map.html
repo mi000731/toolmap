@@ -818,7 +818,7 @@
             
             async function reverseGeocode(lon, lat) {
                 try {
-                    const response = await fetch(https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&result_type=street_address&key=AIzaSyBa9P8XeaoUPUXPqMm8m6NHawZKFpCePqE`);
+                    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&result_type=street_address&key=AIzaSyBa9P8XeaoUPUXPqMm8m6NHawZKFpCePqE`);
                     const data = await response.json();
                     if (data && data.display_name) {
                         $('#add-address').val(data.display_name);
