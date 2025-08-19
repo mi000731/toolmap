@@ -243,45 +243,128 @@
             '停業': 'rgba(107, 114, 128, 0.8)', // gray-500
             'penaltyStroke': 'rgba(239, 68, 68, 1)' // red-500
         };
+        
+        // 聚合點顏色調色盤
+        const clusterColorPalette = [
+            'rgba(2, 132, 199, 0.8)',   // sky-600
+            'rgba(217, 70, 239, 0.8)',  // fuchsia-500
+            'rgba(249, 115, 22, 0.8)',  // orange-500
+            'rgba(132, 204, 22, 0.8)',  // lime-500
+            'rgba(168, 85, 247, 0.8)',  // purple-500
+            'rgba(239, 68, 68, 0.8)',   // red-500
+        ];
 
         // 建立圖示樣式快取
         const styleCache = {};
-        function getStyle(feature) {
-            const type = feature.get('type');
-            const hasPenalty = feature.get('penalty');
-            const styleKey = `${type}-${hasPenalty}`;
 
-            if (!styleCache[styleKey]) {
-                styleCache[styleKey] = new ol.style.Style({
-                    image: new ol.style.Circle({
-                        radius: 8,
-                        fill: new ol.style.Fill({
-                            color: colors[type] || colors['停業']
-                        }),
-                        stroke: new ol.style.Stroke({
-                            color: hasPenalty ? colors.penaltyStroke : '#ffffff',
-                            width: hasPenalty ? 3 : 2
-                        })
-                    })
-                });
-            }
-            return styleCache[styleKey];
-        }
-        
-        const osmLayer = new ol.layer.Tile({
-            source: new ol.source.OSM()
+        const nlscLayer = new ol.layer.Tile({
+            source: new ol.source.XYZ({
+                url: 'https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}.png',
+                attributions: '國土測繪中心',
+                crossOrigin: 'anonymous'
+            })
         });
 
+        // 原始資料來源
         const vectorSource = new ol.source.Vector();
-        const vectorLayer = new ol.layer.Vector({
+
+        // 聚合資料來源
+        const clusterSource = new ol.source.Cluster({
+            distance: 50, // 聚合距離 (像素)
+            minDistance: 25, // 最小聚合距離
             source: vectorSource,
-            style: getStyle
+        });
+
+        // 聚合圖層的樣式函式
+        function clusterStyleFunction(feature) {
+            const features = feature.get('features');
+            const size = features.length;
+            
+            if (size > 1) {
+                // 聚合點樣式
+                const styleKey = `cluster_${size}`;
+                if (!styleCache[styleKey]) {
+                    // 根據數量選擇顏色
+                    const colorIndex = (size * 5) % clusterColorPalette.length;
+                    const clusterColor = clusterColorPalette[colorIndex];
+                    
+                    styleCache[styleKey] = new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: 12 + Math.min(size, 20), // 半徑隨數量增加，設定上限
+                            fill: new ol.style.Fill({
+                                color: clusterColor,
+                            }),
+                            stroke: new ol.style.Stroke({
+                                color: '#fff',
+                                width: 2,
+                            }),
+                        }),
+                        text: new ol.style.Text({
+                            text: size.toString(),
+                            fill: new ol.style.Fill({
+                                color: '#fff',
+                            }),
+                            font: 'bold 12px sans-serif',
+                        }),
+                    });
+                }
+                return styleCache[styleKey];
+            } else {
+                // 單一點位樣式
+                const originalFeature = features[0];
+                const type = originalFeature.get('type');
+                const hasPenalty = originalFeature.get('penalty');
+                const singleStyleKey = `single_${type}_${hasPenalty}`;
+
+                if (!styleCache[singleStyleKey]) {
+                    // 截斷名稱
+                    let name = originalFeature.get('data').name;
+                    if (name.length > 8) {
+                        name = name.substring(0, 8) + '...';
+                    }
+                    
+                    styleCache[singleStyleKey] = new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: 8,
+                            fill: new ol.style.Fill({
+                                color: colors[type] || colors['停業'],
+                            }),
+                            stroke: new ol.style.Stroke({
+                                color: hasPenalty ? colors.penaltyStroke : '#ffffff',
+                                width: hasPenalty ? 3 : 2,
+                            }),
+                        }),
+                        text: new ol.style.Text({
+                            text: name,
+                            font: 'bold 13px sans-serif',
+                            fill: new ol.style.Fill({ color: '#333' }),
+                            backgroundFill: new ol.style.Fill({ color: 'rgba(255, 255, 255, 0.85)' }),
+                            backgroundStroke: new ol.style.Stroke({ color: 'rgba(59, 130, 246, 1)', width: 1 }),
+                            padding: [5, 7, 5, 7],
+                            offsetY: 22,
+                            overflow: true,
+                        })
+                    });
+                }
+                 // 根據解析度決定是否顯示文字
+                const resolution = map.getView().getResolution();
+                const clonedStyle = styleCache[singleStyleKey].clone();
+                if (resolution > 50) { // 縮太遠時不顯示文字
+                    clonedStyle.setText(null);
+                }
+                return clonedStyle;
+            }
+        }
+
+        const clusterLayer = new ol.layer.Vector({
+            source: clusterSource,
+            style: clusterStyleFunction,
         });
 
         // 地圖初始化 (預設視圖為台灣)
         const map = new ol.Map({
             target: 'map',
-            layers: [osmLayer, vectorLayer],
+            layers: [nlscLayer, clusterLayer],
             view: new ol.View({
                 center: ol.proj.fromLonLat([120.9, 23.9]), // 台灣中心點
                 zoom: 8 
@@ -330,35 +413,70 @@
             const feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
                 return feature;
             });
-            if (feature) {
-                const coordinates = feature.getGeometry().getCoordinates();
-                const data = feature.get('data');
-                
-                let penaltyInfo = data.penalty 
-                    ? `<div class="mt-2 p-2 bg-red-100 border-l-4 border-red-500 text-red-700">
-                         <p class="font-bold">裁罰記錄</p>
-                         <p>${data.penaltyRecords}</p>
-                       </div>`
-                    : '<p class="text-sm text-gray-500">無裁罰記錄</p>';
+            
+            infoOverlay.setPosition(undefined); // 先關閉彈窗
 
-                popupContent.innerHTML = `
-                    <h3 class="text-lg font-bold text-gray-800">${data.name}</h3>
-                    <p class="text-sm text-gray-600 mb-2">${data.type}</p>
-                    <div class="space-y-1 text-sm">
-                        <p><strong>負責人:</strong> ${data.personInCharge}</p>
-                        <p><strong>地址:</strong> ${data.address}</p>
-                        <p><strong>聯絡方式:</strong> ${data.contact}</p>
-                        <p><strong>月費:</strong> ${data.fees.monthly > 0 ? data.fees.monthly.toLocaleString() + ' 元' : 'N/A'}</p>
-                        <p class="text-xs text-gray-500">${data.fees.details}</p>
-                        <p><strong>核定人數:</strong> ${data.capacity} 人</p>
-                        <p><strong>設施:</strong> ${data.facilities.totalArea} (室內 ${data.facilities.indoor}, 室外 ${data.facilities.outdoor})</p>
-                        <p><strong>專用車:</strong> ${data.schoolBus}</p>
-                    </div>
-                    ${penaltyInfo}
-                `;
-                infoOverlay.setPosition(coordinates);
-            } else {
-                infoOverlay.setPosition(undefined);
+            if (feature) {
+                const features = feature.get('features');
+                if (features.length > 1) {
+                    // 如果點擊的是聚合點，放大地圖
+                    const extent = ol.extent.createEmpty();
+                    features.forEach(f => ol.extent.extend(extent, f.getGeometry().getExtent()));
+                    map.getView().fit(extent, { duration: 1000, padding: [50, 50, 50, 50], maxZoom: 16 });
+                } else {
+                    // 如果是單一點位，放大地圖並顯示資訊
+                    const originalFeature = features[0];
+                    const coordinates = originalFeature.getGeometry().getCoordinates();
+                    const data = originalFeature.get('data');
+                    
+                    // 計算新的中心點，讓目標點位在畫面的中下方
+                    const view = map.getView();
+                    const zoom = 16; // 500m 視野的縮放等級
+                    const resolution = view.getResolutionForZoom(zoom);
+                    const mapSize = map.getSize(); // [width, height] in pixels
+                    // 向上平移 1/4 的螢幕高度 (in map units)
+                    const verticalShift = (mapSize[1] / 4) * resolution; 
+                    
+                    view.animate({
+                        center: [coordinates[0], coordinates[1] + verticalShift],
+                        zoom: zoom,
+                        duration: 800
+                    });
+
+                    let penaltyInfo = data.penalty 
+                        ? `<div class="mt-2 p-2 bg-red-100 border-l-4 border-red-500 text-red-700">
+                             <p class="font-bold">裁罰記錄</p>
+                             <p>${data.penaltyRecords}</p>
+                           </div>`
+                        : '<p class="text-sm text-gray-500">無裁罰記錄</p>';
+                    
+                    // 建立 Google Maps 導航連結
+                    const destination = `${data.coordinates[1]},${data.coordinates[0]}`;
+                    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
+
+                    popupContent.innerHTML = `
+                        <h3 class="text-lg font-bold text-gray-800">${data.name}</h3>
+                        <p class="text-sm text-gray-600 mb-2">${data.type}</p>
+                        <div class="space-y-1 text-sm">
+                            <p><strong>負責人:</strong> ${data.personInCharge}</p>
+                            <p><strong>地址:</strong> ${data.address}</p>
+                            <p><strong>聯絡方式:</strong> ${data.contact}</p>
+                            <p><strong>月費:</strong> ${data.fees.monthly > 0 ? data.fees.monthly.toLocaleString() + ' 元' : 'N/A'}</p>
+                            <p class="text-xs text-gray-500">${data.fees.details}</p>
+                            <p><strong>核定人數:</strong> ${data.capacity} 人</p>
+                            <p><strong>設施:</strong> ${data.facilities.totalArea} (室內 ${data.facilities.indoor}, 室外 ${data.facilities.outdoor})</p>
+                            <p><strong>專用車:</strong> ${data.schoolBus}</p>
+                        </div>
+                        ${penaltyInfo}
+                        <div class="mt-4">
+                            <a href="${googleMapsUrl}" target="_blank" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 text-center">
+                                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.71,11.29l-9-9a1,1,0,0,0-1.42,0l-9,9a1,1,0,0,0,0,1.42l9,9a1,1,0,0,0,1.42,0l9-9A1,1,0,0,0,21.71,11.29ZM12,20.59,4.41,13,12,5.41,19.59,13Z"/></svg>
+                                <span>導航前往</span>
+                            </a>
+                        </div>
+                    `;
+                    infoOverlay.setPosition(coordinates);
+                }
             }
         });
 
@@ -374,6 +492,7 @@
                         penalty: data.penalty,
                         data: data
                     });
+                    feature.setId(data.id); // 給 feature 一個 ID
                     allFeatures.push(feature);
                 });
                 vectorSource.addFeatures(allFeatures);
@@ -437,7 +556,7 @@
                 });
                 
                 vectorSource.addFeatures(filteredFeatures);
-                $('#filter-modal').addClass('hidden'); // 應用後關閉 modal
+                $('#filter-modal').addClass('hidden');
             }
             
             function resetFilters() {
@@ -452,20 +571,14 @@
             }
 
             // Modal 控制
-            $('#open-filter-modal').on('click', function() {
-                $('#filter-modal').removeClass('hidden');
-            });
-            $('#close-filter-modal').on('click', function() {
-                $('#filter-modal').addClass('hidden');
-            });
+            $('#open-filter-modal').on('click', () => $('#filter-modal').removeClass('hidden'));
+            $('#close-filter-modal').on('click', () => $('#filter-modal').addClass('hidden'));
 
             $('#filter-btn').on('click', applyFilters);
             $('#reset-btn').on('click', resetFilters);
             
             // --- 地理定位邏輯 ---
             function initializeUserLocation() {
-                // Geolocation API 只能在安全(HTTPS)或本地(localhost)環境下運作
-                // 直接開啟 file:///... 將會失敗
                 if (!navigator.geolocation) {
                     $('#notification').text('您的瀏覽器不支援地理定位').removeClass('hidden');
                     return;
@@ -476,21 +589,18 @@
                         const userCoords = [position.coords.longitude, position.coords.latitude];
                         const userPosition = ol.proj.fromLonLat(userCoords);
                         
-                        // 移動地圖視圖到使用者位置
                         map.getView().animate({
                             center: userPosition,
-                            zoom: 14,
-                            duration: 1500 // 動畫時間
+                            zoom: 16, // Zoom level for approx. 500m diameter
+                            duration: 1500
                         });
                         
-                        // 顯示並設定使用者位置標記
                         userLocationOverlay.setPosition(userPosition);
                         $('#user-location').removeClass('hidden');
                     },
                     (error) => {
                         console.warn(`地理定位失敗: ${error.message}`);
                         $('#notification').removeClass('hidden');
-                        // 若失敗，地圖將維持預設的全台灣視圖
                     }
                 );
             }
