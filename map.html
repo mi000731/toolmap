@@ -417,32 +417,36 @@
                 const originalFeature = features[0];
                 const category = originalFeature.get('category');
                 const singleStyleKey = `single_${category}`;
-
+                
+                // FIX: Do not cache the text part of the style
                 if (!styleCache[singleStyleKey]) {
-                    let name = originalFeature.get('name');
-                    if (name.length > 8) name = name.substring(0, 8) + '...';
-                    
-                    styleCache[singleStyleKey] = new ol.style.Style({
+                     styleCache[singleStyleKey] = new ol.style.Style({
                         image: new ol.style.Circle({
                             radius: 8,
                             fill: new ol.style.Fill({ color: categoryColors[category] || categoryColors['其他'] }),
                             stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }),
-                        }),
-                        text: new ol.style.Text({
-                            text: name,
-                            font: 'bold 13px sans-serif',
-                            fill: new ol.style.Fill({ color: '#333' }),
-                            backgroundFill: new ol.style.Fill({ color: 'rgba(255, 255, 255, 0.85)' }),
-                            backgroundStroke: new ol.style.Stroke({ color: 'rgba(59, 130, 246, 1)', width: 1 }),
-                            padding: [5, 7, 5, 7],
-                            offsetY: 22,
-                            overflow: true,
                         })
                     });
                 }
-                const resolution = map.getView().getResolution();
+
                 const clonedStyle = styleCache[singleStyleKey].clone();
-                if (resolution > 50) clonedStyle.setText(null);
+                const resolution = map.getView().getResolution();
+
+                if (resolution <= 50) { // Only show text when zoomed in
+                    let name = originalFeature.get('name');
+                    if (name.length > 8) name = name.substring(0, 8) + '...';
+                    
+                    clonedStyle.setText(new ol.style.Text({
+                        text: name,
+                        font: 'bold 13px sans-serif',
+                        fill: new ol.style.Fill({ color: '#333' }),
+                        backgroundFill: new ol.style.Fill({ color: 'rgba(255, 255, 255, 0.85)' }),
+                        backgroundStroke: new ol.style.Stroke({ color: 'rgba(59, 130, 246, 1)', width: 1 }),
+                        padding: [5, 7, 5, 7],
+                        offsetY: 22,
+                        overflow: true,
+                    }));
+                }
                 return clonedStyle;
             }
         }
