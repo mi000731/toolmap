@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>超認真工業指南針</title>
+    <title>超認真工業指南2350</title>
     
     <!-- OpenLayers CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css">
@@ -564,7 +564,6 @@
                 return false;
             }
             
-            // *** NEW *** Levenshtein distance function for fuzzy search
             function levenshteinDistance(a, b) {
                 if (a.length === 0) return b.length;
                 if (b.length === 0) return a.length;
@@ -575,9 +574,9 @@
                     for (let i = 1; i <= a.length; i++) {
                         const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
                         matrix[j][i] = Math.min(
-                            matrix[j][i - 1] + 1,        // deletion
-                            matrix[j - 1][i] + 1,        // insertion
-                            matrix[j - 1][i - 1] + indicator, // substitution
+                            matrix[j][i - 1] + 1,
+                            matrix[j - 1][i] + 1,
+                            matrix[j - 1][i - 1] + indicator,
                         );
                     }
                 }
@@ -588,25 +587,42 @@
                 const category = $('#category-select').val();
                 const keyword = $('#keyword-search').val().toLowerCase();
                 const isOpenOnly = $('#is-open-checkbox').is(':checked');
-                vectorSource.clear();
-                const filteredFeatures = allFeatures.filter(feature => {
+                
+                let filteredFeatures = allFeatures.filter(feature => {
                     if (category && feature.get('category') !== category) return false;
                     if (isOpenOnly && !isCurrentlyOpen(feature.get('hours'))) return false;
-                    
-                    // *** MODIFIED *** Use fuzzy search
-                    if (keyword) {
+                    return true;
+                });
+
+                if (keyword) {
+                    let featuresWithDistance = [];
+                    let minDistance = Infinity;
+
+                    filteredFeatures.forEach(feature => {
                         const name = feature.get('name').toLowerCase();
                         const address = feature.get('address').toLowerCase();
                         const product = (feature.get('product') || '').toLowerCase();
-                        
-                        const nameMatch = levenshteinDistance(name, keyword) <= 1 || name.includes(keyword);
-                        const addressMatch = levenshteinDistance(address, keyword) <= 1 || address.includes(keyword);
-                        const productMatch = levenshteinDistance(product, keyword) <= 1 || product.includes(keyword);
 
-                        if (!nameMatch && !addressMatch && !productMatch) return false;
-                    }
-                    return true;
-                });
+                        const nameDist = name.includes(keyword) ? 0 : levenshteinDistance(name, keyword);
+                        const addressDist = address.includes(keyword) ? 0 : levenshteinDistance(address, keyword);
+                        const productDist = product.includes(keyword) ? 0 : levenshteinDistance(product, keyword);
+                        
+                        const bestDist = Math.min(nameDist, addressDist, productDist);
+                        
+                        if (bestDist < minDistance) {
+                            minDistance = bestDist;
+                        }
+                        featuresWithDistance.push({ feature: feature, distance: bestDist });
+                    });
+                    
+                    const tolerance = keyword.length > 4 ? 1 : 0;
+                    filteredFeatures = featuresWithDistance
+                        .filter(item => item.distance <= minDistance + tolerance && item.distance <= 1)
+                        .sort((a, b) => a.distance - b.distance)
+                        .map(item => item.feature);
+                }
+                
+                vectorSource.clear();
                 vectorSource.addFeatures(filteredFeatures);
                 $('#filter-modal').addClass('hidden');
             }
@@ -790,7 +806,7 @@
             });
 
             const createTimeSlot = () => {
-                $('#hours-container').append(`<div class="time-slot-row grid grid-cols-1 sm:grid-cols-11 gap-2 items-center"><div class="sm:col-span-4"><select name="start_day" class="w-full p-2 border border-gray-300 rounded-md text-sm" required><option value="一">一</option><option value="二">二</option><option value="三">三</option><option value="四">四</option><option value="五">五</option><option value="六">六</option><option value="日">日</option></select></div><div class="hidden sm:block text-center">-</div><div class="sm:col-span-4"><select name="end_day" class="w-full p-2 border border-gray-300 rounded-md text-sm" required><option value="一">一</option><option value="二">二</option><option value="三">三</option><option value="四">四</option><option value="五" selected>五</option><option value="六">六</option><option value="日">日</option></select></div><div class="sm:col-span-5"><input type="time" name="start_time" class="w-full p-2 border border-gray-300 rounded-md" value="09:00" required></div><div class="hidden sm:block text-center">-</div><div class="sm:col-span-5"><input type="time" name="end_time" class="w-full p-2 border border-gray-300 rounded-md" value="18:00" required></div><div class="sm:col-span-1 flex justify-end"><button type="button" class="remove-time-slot-btn text-red-500 hover:text-red-700 p-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button></div></div>`);
+                $('#hours-container').append(`<div class="time-slot-row flex flex-wrap sm:flex-nowrap items-center gap-x-2 gap-y-1"><select name="start_day" class="p-2 border border-gray-300 rounded-md text-sm w-20" required><option value="一">一</option><option value="二">二</option><option value="三">三</option><option value="四">四</option><option value="五">五</option><option value="六">六</option><option value="日">日</option></select><span class="hidden sm:inline">-</span><select name="end_day" class="p-2 border border-gray-300 rounded-md text-sm w-20" required><option value="一">一</option><option value="二">二</option><option value="三">三</option><option value="四">四</option><option value="五" selected>五</option><option value="六">六</option><option value="日">日</option></select><input type="time" name="start_time" class="flex-grow p-2 border border-gray-300 rounded-md" value="09:00" required><span class="hidden sm:inline">-</span><input type="time" name="end_time" class="flex-grow p-2 border border-gray-300 rounded-md" value="18:00" required><button type="button" class="remove-time-slot-btn text-red-500 hover:text-red-700 p-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button></div>`);
             };
             $('#add-time-slot-btn').on('click', createTimeSlot);
             $('#hours-container').on('click', '.remove-time-slot-btn', function() {
