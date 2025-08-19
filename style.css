@@ -1,0 +1,113 @@
+/* 自定義樣式 */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', 'Noto Sans TC', sans-serif;
+    overflow: hidden; /* 防止滾動 */
+}
+#map {
+    width: 100%;
+    height: 100%;
+    background: #f0f0f0;
+}
+/* OpenLayers 彈出視窗樣式 */
+.ol-popup {
+    position: absolute;
+    background-color: white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #cccccc;
+    bottom: 12px;
+    left: -50px;
+    min-width: 320px;
+    max-width: 400px;
+    transform: translateX(-50%);
+}
+.ol-popup:after, .ol-popup:before {
+    top: 100%;
+    border: solid transparent;
+    content: " ";
+    height: 0;
+    width: 0;
+    position: absolute;
+    pointer-events: none;
+}
+.ol-popup:after {
+    border-top-color: white;
+    border-width: 10px;
+    left: 50%;
+    margin-left: -10px;
+}
+.ol-popup:before {
+    border-top-color: #cccccc;
+    border-width: 11px;
+    left: 50%;
+    margin-left: -11px;
+}
+.ol-popup-closer {
+    text-decoration: none;
+    position: absolute;
+    top: 2px;
+    right: 8px;
+    font-size: 20px;
+}
+.ol-popup-closer:after {
+    content: "✖";
+}
+/* 避免 Tailwind CSS 影響 OpenLayers 控制項 */
+.ol-control button {
+    background-color: rgba(255,255,255,0.8) !important;
+    color: #333 !important;
+    border: 1px solid #ccc !important;
+}
+.ol-control button:hover {
+    background-color: rgba(255,255,255,1) !important;
+}
+/* 滾動條樣式 */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+/* 當前位置標記動畫 */
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    }
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+    }
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+}
+.pulse-dot {
+    animation: pulse 2s infinite;
+}
+/* 新增地點的標記樣式 */
+.new-location-marker {
+     width: 30px;
+     height: 30px;
+     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ef4444" width="30px" height="30px"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>');
+     background-size: contain;
+     cursor: move;
+     transform: translate(-50%, -100%); /* Pin bottom center */
+}
+.add-location-popup {
+    transform: translate(-50%, -130%);
+    min-width: 250px;
+}
