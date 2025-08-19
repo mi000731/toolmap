@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣加工廠資訊地圖</title>
+    
+    <!-- OpenLayers CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <!-- OpenLayers JS -->
+    <script src="https://cdn.jsdelivr.net/npm/ol@v9.2.4/dist/ol.js"></script>
+    
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+    
+    <!-- Google Identity Services Library -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <style>
+        /* 自定義樣式 */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            overflow: hidden; /* 防止滾動 */
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #f0f0f0;
+        }
+        /* OpenLayers 彈出視窗樣式 */
+        .ol-popup {
+            position: absolute;
+            background-color: white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #cccccc;
+            bottom: 12px;
+            left: -50px;
+            min-width: 320px;
+            max-width: 400px;
+            transform: translateX(-50%);
+        }
+        .ol-popup:after, .ol-popup:before {
+            top: 100%;
+            border: solid transparent;
+            content: " ";
+            height: 0;
+            width: 0;
+            position: absolute;
+            pointer-events: none;
+        }
+        .ol-popup:after {
+            border-top-color: white;
+            border-width: 10px;
+            left: 50%;
+            margin-left: -10px;
+        }
+        .ol-popup:before {
+            border-top-color: #cccccc;
+            border-width: 11px;
+            left: 50%;
+            margin-left: -11px;
+        }
+        .ol-popup-closer {
+            text-decoration: none;
+            position: absolute;
+            top: 2px;
+            right: 8px;
+            font-size: 20px;
+        }
+        .ol-popup-closer:after {
+            content: "✖";
+        }
+        /* 避免 Tailwind CSS 影響 OpenLayers 控制項 */
+        .ol-control button {
+            background-color: rgba(255,255,255,0.8) !important;
+            color: #333 !important;
+            border: 1px solid #ccc !important;
+        }
+        .ol-control button:hover {
+            background-color: rgba(255,255,255,1) !important;
+        }
+        /* 滾動條樣式 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        /* 當前位置標記動畫 */
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+            }
+        }
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+        /* 新增地點的標記樣式 */
+        .new-location-marker {
+             width: 30px;
+             height: 30px;
+             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ef4444" width="30px" height="30px"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>');
+             background-size: contain;
+             cursor: move;
+             transform: translate(-50%, -100%); /* Pin bottom center */
+        }
+        .add-location-popup {
+            transform: translate(-50%, -130%);
+            min-width: 250px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="app" class="relative h-screen w-screen">
+        <!-- 地圖容器 -->
+        <main class="w-full h-full relative">
+            <div id="map"></div>
+            
+            <!-- 錯誤/提示訊息 -->
+            <div id="notification" class="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-yellow-500 text-white text-sm py-2 px-4 rounded-lg shadow-lg hidden">
+                訊息
+            </div>
+
+            <!-- 彈出視窗容器 -->
+            <div id="popup" class="ol-popup">
+                <a href="#" id="popup-closer" class="ol-popup-closer"></a>
+                <div id="popup-content"></div>
+            </div>
+            
+            <!-- 當前位置標記 (HTML Overlay) -->
+            <div id="user-location" class="absolute w-4 h-4 -translate-x-1/2 -translate-y-1/2 hidden">
+                <div class="w-full h-full rounded-full bg-blue-600 border-2 border-white shadow-md pulse-dot"></div>
+            </div>
+            
+            <!-- 新增店家提示 Popup -->
+            <div id="add-location-popup" class="ol-popup add-location-popup hidden">
+                <p id="add-location-address" class="text-sm mb-2"></p>
+                <button id="open-add-modal-btn" class="w-full bg-green-500 text-white py-1 px-3 rounded-md hover:bg-green-600">新增店家</button>
+            </div>
+
+
+            <!-- UI 按鈕群組 -->
+            <div class="absolute top-4 right-4 z-10 flex flex-col items-end space-y-2">
+                <!-- 登入/新增說明按鈕 -->
+                <div id="login-status">
+                    <div id="g_id_onload"
+                         data-client_id="35839698842-b73h9naufqdm7d0j378882k1e6aq6064.apps.googleusercontent.com"
+                         data-callback="handleCredentialResponse"
+                         data-auto_prompt="false">
+                    </div>
+                    <div class="g_id_signin" 
+                         data-type="standard"
+                         data-size="large"
+                         data-theme="outline"
+                         data-text="sign_in_with"
+                         data-shape="rectangular"
+                         data-logo_alignment="left">
+                    </div>
+                     <div id="add-info" class="bg-white text-gray-700 py-2 px-4 rounded-lg shadow-lg items-center space-x-2 hidden">
+                        <span id="user-name" class="font-bold"></span>
+                        <span>已登入</span>
+                        <a href="#" id="sign-out-btn" class="text-xs text-blue-500 hover:underline ml-2">登出</a>
+                    </div>
+                </div>
+                <button id="open-filter-modal" class="bg-blue-600 text-white p-3 rounded-lg shadow-lg hover:bg-blue-700 transition-colors duration-300 flex items-center justify-center" title="篩選">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+                 <button id="center-on-me-btn" class="bg-white text-gray-700 p-3 rounded-lg shadow-lg hover:bg-gray-100 transition-colors duration-300 flex items-center justify-center" title="回到我的位置">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                    </svg>
+                </button>
+            </div>
+
+
+            <!-- 圖例 -->
+            <div id="legend" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-md">
+                <div id="legend-content" class="flex items-center justify-center flex-wrap gap-x-4 gap-y-1 text-xs md:text-sm">
+                    <!-- 圖例內容將由 JS 動態生成 -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 篩選 Modal -->
+    <div id="filter-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-800">工廠篩選</h2>
+                <button id="close-filter-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+            </div>
+            <div class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <!-- 分類篩選 -->
+                <div class="mb-4">
+                    <label for="category-select" class="block text-sm font-medium text-gray-700 mb-1">工廠分類</label>
+                    <select id="category-select" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">所有分類</option>
+                    </select>
+                </div>
+                <!-- 關鍵字搜尋 -->
+                <div class="mb-4">
+                    <label for="keyword-search" class="block text-sm font-medium text-gray-700 mb-1">關鍵字搜尋</label>
+                    <input type="text" id="keyword-search" placeholder="名稱、地址、產品" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                 <!-- 營業中篩選 -->
+                <div class="mb-4 space-y-2">
+                    <div class="flex items-center">
+                        <input id="is-open-checkbox" type="checkbox" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                        <label for="is-open-checkbox" class="ml-2 block text-sm text-gray-900">僅顯示目前營業中</label>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 bg-gray-50 border-t rounded-b-lg flex space-x-2">
+                <button id="filter-btn" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    套用篩選
+                </button>
+                <button id="reset-btn" class="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">
+                    重設
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 公司產品 Modal -->
+    <div id="product-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h2 id="product-modal-title" class="text-xl font-bold text-gray-800">公司產品</h2>
+                <button id="close-product-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+            </div>
+            <div id="product-modal-content" class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar whitespace-pre-wrap"></div>
+        </div>
+    </div>
+    
+    <!-- 新增店家 Modal -->
+    <div id="add-location-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-start p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-800">新增店家</h2>
+                <button id="close-add-location-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+            </div>
+            <div class="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar space-y-4">
+                <p class="text-sm text-gray-600">請填寫店家資訊。地址已自動帶入，可手動修改或拖動地圖上的紅色標記調整。</p>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">店名 <span class="text-red-500">*</span></label>
+                    <input type="text" id="add-name" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">類別 <span class="text-red-500">*</span></label>
+                    <select id="add-category" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm"></select>
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700">地址 <span class="text-red-500">*</span></label>
+                    <input type="text" id="add-address" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">聯絡方式(電話) <span class="text-red-500">*</span></label>
+                    <input type="text" id="add-contact" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="格式: 02-12345678">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">營業時間 <span class="text-red-500">*</span></label>
+                    <div id="hours-container" class="space-y-2">
+                        <!-- JS will generate time slots here -->
+                    </div>
+                    <button id="add-time-slot" class="mt-2 text-sm text-blue-600 hover:text-blue-800">+ 新增時段</button>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">公司產品 <span class="text-red-500">*</span></label>
+                    <textarea id="add-product" rows="3" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm"></textarea>
+                </div>
+                <hr>
+                <p class="text-sm text-gray-500">以下為選填項目</p>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">傳真</label>
+                    <input type="text" id="add-fax" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">信箱</label>
+                    <input type="email" id="add-email" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700">網頁</label>
+                    <input type="url" id="add-website" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com">
+                </div>
+            </div>
+             <div class="p-6 bg-gray-50 border-t rounded-b-lg flex justify-end">
+                <button id="submit-location-btn" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">
+                    送出審核
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // This function needs to be in the global scope for the Google API to call it.
+        function handleCredentialResponse(response) {
+            // Decode the JWT to get user profile
+            const base64Url = response.credential.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            
+            const profile = JSON.parse(jsonPayload);
+            
+            const event = new CustomEvent('google-signin-success', { detail: profile });
+            window.dispatchEvent(event);
+        }
+        // Make it globally accessible
+        window.handleCredentialResponse = handleCredentialResponse;
+    </script>
+    
+    <!-- Main Application Logic -->
+    <script type="module" src="main.js"></script>
+
+</body>
+</html>
