@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣加工廠資訊地圖1243</title>
+    <title>台灣加工廠資訊地圖1303</title>
     
     <!-- OpenLayers CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css">
@@ -170,7 +170,28 @@
 
 
             <!-- UI 按鈕群組 -->
-            <div class="absolute top-4 right-4 z-10 flex flex-col space-y-2">
+            <div class="absolute top-4 right-4 z-10 flex flex-col items-end space-y-2">
+                <!-- 登入/新增說明按鈕 -->
+                <div id="login-status">
+                    <div id="g_id_onload"
+                         data-client_id="35839698842-b73h9naufqdm7d0j378882k1e6aq6064.apps.googleusercontent.com"
+                         data-callback="handleCredentialResponse"
+                         data-auto_prompt="false">
+                    </div>
+                    <div class="g_id_signin" 
+                         data-type="standard"
+                         data-size="large"
+                         data-theme="outline"
+                         data-text="sign_in_with"
+                         data-shape="rectangular"
+                         data-logo_alignment="left">
+                    </div>
+                     <div id="add-info" class="bg-white text-gray-700 py-2 px-4 rounded-lg shadow-lg items-center space-x-2 hidden">
+                        <span id="user-name" class="font-bold"></span>
+                        <span>已登入</span>
+                        <a href="#" id="sign-out-btn" class="text-xs text-blue-500 hover:underline ml-2">登出</a>
+                    </div>
+                </div>
                 <button id="open-filter-modal" class="bg-blue-600 text-white p-3 rounded-lg shadow-lg hover:bg-blue-700 transition-colors duration-300 flex items-center justify-center" title="篩選">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
@@ -181,28 +202,6 @@
                       <path stroke-linecap="round" stroke-linejoin="round" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
                     </svg>
                 </button>
-            </div>
-            
-            <!-- 登入/新增說明按鈕 -->
-            <div id="login-status" class="absolute top-4 left-4 z-10">
-                <div id="g_id_onload"
-                     data-client_id="35839698842-b73h9naufqdm7d0j378882k1e6aq6064.apps.googleusercontent.com"
-                     data-callback="handleCredentialResponse"
-                     data-auto_prompt="false">
-                </div>
-                <div class="g_id_signin" 
-                     data-type="standard"
-                     data-size="large"
-                     data-theme="outline"
-                     data-text="sign_in_with"
-                     data-shape="rectangular"
-                     data-logo_alignment="left">
-                </div>
-                 <div id="add-info" class="bg-white text-gray-700 py-2 px-4 rounded-lg shadow-lg items-center space-x-2 hidden">
-                    <span id="user-name" class="font-bold"></span>
-                    <span>已登入</span>
-                    <a href="#" id="sign-out-btn" class="text-xs text-blue-500 hover:underline ml-2">登出</a>
-                </div>
             </div>
 
 
