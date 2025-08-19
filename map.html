@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣加工廠資訊地圖</title>
+    <title>台灣加工廠資訊地圖0742</title>
     
     <!-- OpenLayers CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css">
@@ -127,14 +127,6 @@
         .new-location-marker:active {
             cursor: grabbing;
         }
-        /* 新增店家 Modal 樣式調整 */
-        #add-location-modal {
-            transition: transform 0.3s ease-in-out;
-            transform: translateX(-100%);
-        }
-        #add-location-modal.is-open {
-            transform: translateX(0);
-        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -211,65 +203,63 @@
         </main>
         
         <!-- 新增店家 Modal -->
-        <div id="add-location-modal" class="fixed top-0 left-0 h-full z-40 bg-white shadow-2xl w-full max-w-md">
-            <div class="flex flex-col h-full">
-                <div class="p-4 border-b flex justify-between items-center">
-                    <h2 class="text-xl font-bold text-gray-800">新增店家</h2>
-                    <button id="close-add-location-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
-                </div>
-                <form id="add-location-form" class="flex-grow flex flex-col">
-                    <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
-                        <p class="text-sm text-gray-600">請填寫店家資訊，或在地圖上拖曳圖釘以調整位置。</p>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">店名 <span class="text-red-500">*</span></label>
-                            <input type="text" id="add-name" name="name" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">類別 <span class="text-red-500">*</span></label>
-                            <select id="add-category" name="category" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required></select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">地址 <span class="text-red-500">*</span></label>
-                            <input type="text" id="add-address" name="address" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">聯絡方式(電話) <span class="text-red-500">*</span></label>
-                            <input type="text" id="add-contact" name="contact" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="格式: 02-12345678" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">營業時間 <span class="text-red-500">*</span></label>
-                            <div id="hours-container" class="space-y-2">
-                                <!-- JS will generate time slots here -->
-                            </div>
-                            <button type="button" id="add-time-slot-btn" class="mt-2 text-sm text-blue-600 hover:text-blue-800">+ 新增時段</button>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">公司產品 <span class="text-red-500">*</span></label>
-                            <textarea id="add-product" name="product" rows="3" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required></textarea>
-                        </div>
-                        <hr>
-                        <p class="text-sm text-gray-500">以下為選填項目</p>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">傳真</label>
-                            <input type="text" id="add-fax" name="fax" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">信箱</label>
-                            <input type="email" id="add-email" name="email" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">網頁</label>
-                            <input type="url" id="add-website" name="website" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com">
-                        </div>
-                    </div>
-                    <div class="p-4 bg-gray-50 border-t flex justify-end">
-                        <button id="submit-location-btn" type="submit" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center w-28">
-                            <span class="submit-text">送出審核</span>
-                            <span class="spinner hidden animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
-                        </button>
-                    </div>
-                </form>
+        <div id="add-location-modal" class="hidden absolute top-4 left-4 z-40 bg-white shadow-2xl w-full max-w-md rounded-lg flex flex-col" style="max-height: calc(100vh - 2rem);">
+            <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
+                <h2 class="text-xl font-bold text-gray-800">新增店家</h2>
+                <button id="close-add-location-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
             </div>
+            <form id="add-location-form" class="flex-grow flex flex-col overflow-hidden">
+                <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
+                    <p class="text-sm text-gray-600">請填寫店家資訊，或在地圖上拖曳圖釘以調整位置。</p>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">店名 <span class="text-red-500">*</span></label>
+                        <input type="text" id="add-name" name="name" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">類別 <span class="text-red-500">*</span></label>
+                        <select id="add-category" name="category" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required></select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">地址 <span class="text-red-500">*</span></label>
+                        <input type="text" id="add-address" name="address" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">聯絡方式(電話) <span class="text-red-500">*</span></label>
+                        <input type="text" id="add-contact" name="contact" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="格式: 02-12345678" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">營業時間 <span class="text-red-500">*</span></label>
+                        <div id="hours-container" class="space-y-2">
+                            <!-- JS will generate time slots here -->
+                        </div>
+                        <button type="button" id="add-time-slot-btn" class="mt-2 text-sm text-blue-600 hover:text-blue-800">+ 新增時段</button>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">公司產品 <span class="text-red-500">*</span></label>
+                        <textarea id="add-product" name="product" rows="3" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required></textarea>
+                    </div>
+                    <hr>
+                    <p class="text-sm text-gray-500">以下為選填項目</p>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">傳真</label>
+                        <input type="text" id="add-fax" name="fax" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">信箱</label>
+                        <input type="email" id="add-email" name="email" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">網頁</label>
+                        <input type="url" id="add-website" name="website" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com">
+                    </div>
+                </div>
+                <div class="p-4 bg-gray-50 border-t flex justify-end flex-shrink-0">
+                    <button id="submit-location-btn" type="submit" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center w-28">
+                        <span class="submit-text">送出審核</span>
+                        <span class="spinner hidden animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -608,8 +598,6 @@
             let isAddModeActive = false;
             let longPressTimeout = null;
             let longPressFired = false;
-            
-            // *** REFACTORED DRAG LOGIC STARTS HERE ***
             let isDraggingMarker = false;
 
             function startAddLocationProcess(coordinate) {
@@ -628,47 +616,50 @@
                 });
                 map.addOverlay(tempMarker);
                 
-                // Add drag interaction to the marker element itself
                 markerEl.addEventListener('pointerdown', (e) => {
                     isDraggingMarker = true;
-                    map.on('pointermove', handlePointerMove);
-                    map.on('pointerup', handlePointerUp);
-                    e.stopPropagation(); // Prevent map panning
+                    map.getInteractions().forEach(i => { if(i instanceof ol.interaction.DragPan) i.setActive(false); });
+                    document.addEventListener('pointermove', handlePointerMove);
+                    document.addEventListener('pointerup', handlePointerUp);
+                    e.stopPropagation();
                 });
 
                 $('#add-location-form')[0].reset();
                 $('#hours-container').empty();
                 createTimeSlot();
                 reverseGeocode(lonLat[0], lonLat[1]);
-                $('#add-location-modal').addClass('is-open');
+                $('#add-location-modal').removeClass('hidden');
                 
-                const modalWidth = $('#add-location-modal').width();
-                map.getView().fit(new ol.geom.Point(coordinate), {
-                    padding: [50, 50, 50, modalWidth + 50],
-                    duration: 500,
-                    maxZoom: 17
+                map.getView().animate({
+                    center: coordinate,
+                    zoom: 17,
+                    duration: 500
                 });
             }
 
-            function handlePointerMove(evt) {
+            function handlePointerMove(e) {
                 if (isDraggingMarker) {
-                    tempMarker.setPosition(evt.coordinate);
+                    const coordinate = map.getEventCoordinate(e);
+                    tempMarker.setPosition(coordinate);
                 }
             }
 
-            function handlePointerUp(evt) {
+            function handlePointerUp(e) {
                 if (isDraggingMarker) {
-                    const lonLat = ol.proj.toLonLat(evt.coordinate);
+                    map.getInteractions().forEach(i => { if(i instanceof ol.interaction.DragPan) i.setActive(true); });
+                    document.removeEventListener('pointermove', handlePointerMove);
+                    document.removeEventListener('pointerup', handlePointerUp);
+                    
+                    const coordinate = map.getEventCoordinate(e);
+                    const lonLat = ol.proj.toLonLat(coordinate);
                     reverseGeocode(lonLat[0], lonLat[1]);
+                    
                     isDraggingMarker = false;
-                    map.un('pointermove', handlePointerMove);
-                    map.un('pointerup', handlePointerUp);
                 }
             }
-            // *** REFACTORED DRAG LOGIC ENDS HERE ***
             
             $('#close-add-location-modal').on('click', () => {
-                $('#add-location-modal').removeClass('is-open');
+                $('#add-location-modal').addClass('hidden');
                 if(tempMarker) map.removeOverlay(tempMarker);
                 tempMarker = null;
             });
@@ -831,7 +822,7 @@
                 fetch(APPS_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(newData) })
                 .then(() => {
                     showNotification("資料已成功送出審核！感謝您的貢獻。", 'success');
-                    $('#add-location-modal').removeClass('is-open');
+                    $('#add-location-modal').addClass('hidden');
                     if(tempMarker) map.removeOverlay(tempMarker);
                     tempMarker = null;
                     setTimeout(loadData, 2000);
@@ -880,33 +871,3 @@
     </script>
 </body>
 </html>
-" and am asking a follow up question.
-I have a problem with the selected code, which I have pasted below:
-```html
-            map.on('pointerdown', (evt) => {
-                if (tempMarker && tempMarker.getElement().getBoundingClientRect().intersects(map.getPixelFromCoordinate(evt.coordinate))) {
-                    isDragging = true;
-                }
-                if (evt.originalEvent.pointerType !== 'touch') return;
-                longPressFired = false;
-                longPressTimeout = setTimeout(() => {
-                    longPressFired = true;
-                    startAddLocationProcess(evt.coordinate);
-                    longPressTimeout = null;
-                }, 500);
-            });
-            map.on('pointerdrag', (evt) => {
-                if (longPressTimeout) clearTimeout(longPressTimeout);
-                if (isDragging) tempMarker.setPosition(evt.coordinate);
-            });
-            map.on('pointerup', (evt) => {
-                if (longPressTimeout) clearTimeout(longPressTimeout);
-                if (isDragging) {
-                    isDragging = false;
-                    const lonLat = ol.proj.toLonLat(evt.coordinate);
-                    reverseGeocode(lonLat[0], lonLat[1]);
-                }
-            });
-```
-The problem is that the code is not working as expected. Can you help me fix it?
-For intro and outro, respond in the Chinese (Traditional) languag
