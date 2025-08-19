@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>超認真工業指南2350</title>
+    <title>超認真工業指南針</title>
     
     <!-- OpenLayers CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css">
@@ -588,39 +588,27 @@
                 const keyword = $('#keyword-search').val().toLowerCase();
                 const isOpenOnly = $('#is-open-checkbox').is(':checked');
                 
-                let filteredFeatures = allFeatures.filter(feature => {
+                const tolerance = 1; // Allow up to 1 character difference
+
+                const filteredFeatures = allFeatures.filter(feature => {
                     if (category && feature.get('category') !== category) return false;
                     if (isOpenOnly && !isCurrentlyOpen(feature.get('hours'))) return false;
-                    return true;
-                });
 
-                if (keyword) {
-                    let featuresWithDistance = [];
-                    let minDistance = Infinity;
-
-                    filteredFeatures.forEach(feature => {
+                    if (keyword) {
                         const name = feature.get('name').toLowerCase();
                         const address = feature.get('address').toLowerCase();
                         const product = (feature.get('product') || '').toLowerCase();
 
-                        const nameDist = name.includes(keyword) ? 0 : levenshteinDistance(name, keyword);
-                        const addressDist = address.includes(keyword) ? 0 : levenshteinDistance(address, keyword);
-                        const productDist = product.includes(keyword) ? 0 : levenshteinDistance(product, keyword);
-                        
-                        const bestDist = Math.min(nameDist, addressDist, productDist);
-                        
-                        if (bestDist < minDistance) {
-                            minDistance = bestDist;
+                        const nameMatch = name.includes(keyword) || levenshteinDistance(name, keyword) <= tolerance;
+                        const addressMatch = address.includes(keyword) || levenshteinDistance(address, keyword) <= tolerance;
+                        const productMatch = product.includes(keyword) || levenshteinDistance(product, keyword) <= tolerance;
+
+                        if (!nameMatch && !addressMatch && !productMatch) {
+                            return false;
                         }
-                        featuresWithDistance.push({ feature: feature, distance: bestDist });
-                    });
-                    
-                    const tolerance = keyword.length > 4 ? 1 : 0;
-                    filteredFeatures = featuresWithDistance
-                        .filter(item => item.distance <= minDistance + tolerance && item.distance <= 1)
-                        .sort((a, b) => a.distance - b.distance)
-                        .map(item => item.feature);
-                }
+                    }
+                    return true;
+                });
                 
                 vectorSource.clear();
                 vectorSource.addFeatures(filteredFeatures);
