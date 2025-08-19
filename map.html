@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣幼兒園資訊地圖</title>
+    <title>台灣加工廠資訊地圖</title>
     
     <!-- OpenLayers CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css">
@@ -16,6 +16,9 @@
     
     <!-- OpenLayers JS -->
     <script src="https://cdn.jsdelivr.net/npm/ol@v9.2.4/dist/ol.js"></script>
+    
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     
     <style>
         /* 自定義樣式 */
@@ -129,7 +132,7 @@
             
             <!-- 錯誤/提示訊息 -->
             <div id="notification" class="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-yellow-500 text-white text-sm py-2 px-4 rounded-lg shadow-lg hidden">
-                無法取得您的位置，將顯示全台地圖。
+                訊息
             </div>
 
             <!-- 彈出視窗容器 -->
@@ -150,16 +153,28 @@
                 </svg>
                 <span>篩選</span>
             </button>
+            
+            <!-- 登入/新增說明按鈕 -->
+            <div id="login-status" class="absolute top-4 left-4 z-10">
+                 <button id="login-btn" class="bg-white text-gray-700 py-2 px-4 rounded-lg shadow-lg hover:bg-gray-100 transition-colors duration-300 flex items-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd" />
+                    </svg>
+                    <span>登入以新增店家</span>
+                </button>
+                 <div id="add-info" class="bg-white text-gray-700 py-2 px-4 rounded-lg shadow-lg flex items-center space-x-2 hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    <span>已登入，可在地圖按右鍵新增</span>
+                </div>
+            </div>
+
 
             <!-- 圖例 -->
             <div id="legend" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-md">
-                <div class="flex items-center justify-center space-x-2 md:space-x-4 text-xs md:text-sm">
-                    <div class="flex items-center"><span class="h-3 w-3 rounded-full bg-green-500 mr-1.5 border border-gray-400"></span>公立</div>
-                    <div class="flex items-center"><span class="h-3 w-3 rounded-full bg-blue-500 mr-1.5 border border-gray-400"></span>私立</div>
-                    <div class="flex items-center"><span class="h-3 w-3 rounded-full bg-teal-500 mr-1.5 border border-gray-400"></span>準公共</div>
-                    <div class="flex items-center"><span class="h-3 w-3 rounded-full bg-yellow-500 mr-1.5 border border-gray-400"></span>非營利</div>
-                    <div class="flex items-center"><span class="h-3 w-3 rounded-full bg-gray-500 mr-1.5 border border-gray-400"></span>停業</div>
-                    <div class="flex items-center"><span class="h-3 w-3 rounded-full border-2 border-red-500 bg-white mr-1.5"></span>有裁罰</div>
+                <div id="legend-content" class="flex items-center justify-center flex-wrap gap-x-4 gap-y-1 text-xs md:text-sm">
+                    <!-- 圖例內容將由 JS 動態生成 -->
                 </div>
             </div>
         </main>
@@ -169,42 +184,27 @@
     <div id="filter-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div class="p-6 border-b flex justify-between items-center">
-                <h2 class="text-xl font-bold text-gray-800">篩選條件</h2>
+                <h2 class="text-xl font-bold text-gray-800">工廠篩選</h2>
                 <button id="close-filter-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
             </div>
             <div class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                <!-- 地區篩選 -->
+                <!-- 分類篩選 -->
                 <div class="mb-4">
-                    <label for="city-select" class="block text-sm font-medium text-gray-700 mb-1">縣市</label>
-                    <select id="city-select" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="">所有縣市</option>
-                    </select>
-                </div>
-                <div class="mb-4">
-                    <label for="district-select" class="block text-sm font-medium text-gray-700 mb-1">行政區</label>
-                    <select id="district-select" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="">所有行政區</option>
+                    <label for="category-select" class="block text-sm font-medium text-gray-700 mb-1">工廠分類</label>
+                    <select id="category-select" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">所有分類</option>
                     </select>
                 </div>
                 <!-- 關鍵字搜尋 -->
                 <div class="mb-4">
                     <label for="keyword-search" class="block text-sm font-medium text-gray-700 mb-1">關鍵字搜尋</label>
-                    <input type="text" id="keyword-search" placeholder="名稱、負責人、地址" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <input type="text" id="keyword-search" placeholder="名稱、地址" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
-                <!-- 月費範圍 -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">月費範圍</label>
-                    <div class="flex items-center space-x-2">
-                        <input type="number" id="min-fee" placeholder="最低" class="w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                        <span>-</span>
-                        <input type="number" id="max-fee" placeholder="最高" class="w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                    </div>
-                </div>
-                <!-- 其他篩選 -->
+                 <!-- 營業中篩選 -->
                 <div class="mb-4 space-y-2">
                     <div class="flex items-center">
-                        <input id="has-penalty" type="checkbox" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
-                        <label for="has-penalty" class="ml-2 block text-sm text-gray-900">僅顯示有裁罰紀錄</label>
+                        <input id="is-open-checkbox" type="checkbox" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                        <label for="is-open-checkbox" class="ml-2 block text-sm text-gray-900">僅顯示目前營業中</label>
                     </div>
                 </div>
             </div>
@@ -218,30 +218,92 @@
             </div>
         </div>
     </div>
+    
+    <!-- 公司產品 Modal -->
+    <div id="product-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h2 id="product-modal-title" class="text-xl font-bold text-gray-800">公司產品</h2>
+                <button id="close-product-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+            </div>
+            <div id="product-modal-content" class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar whitespace-pre-wrap"></div>
+        </div>
+    </div>
+    
+    <!-- 新增店家 Modal -->
+    <div id="add-location-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-800">新增店家</h2>
+                <button id="close-add-location-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+            </div>
+            <div class="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar space-y-4">
+                <p class="text-sm text-gray-600">請填寫店家資訊。地址已根據您點擊的位置自動帶入，可手動修改。</p>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">店名 <span class="text-red-500">*</span></label>
+                    <input type="text" id="add-name" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">類別 <span class="text-red-500">*</span></label>
+                    <select id="add-category" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm"></select>
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700">地址 <span class="text-red-500">*</span></label>
+                    <input type="text" id="add-address" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">聯絡方式 <span class="text-red-500">*</span></label>
+                    <input type="text" id="add-contact" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="主要聯絡電話">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700">營業時間 <span class="text-red-500">*</span></label>
+                    <input type="text" id="add-hours" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="例: 週一-週五 09:00-18:00">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">公司產品 <span class="text-red-500">*</span></label>
+                    <textarea id="add-product" rows="3" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm"></textarea>
+                </div>
+                <hr>
+                <p class="text-sm text-gray-500">以下為選填項目</p>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">電話</label>
+                    <input type="text" id="add-phone" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">傳真</label>
+                    <input type="text" id="add-fax" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">信箱</label>
+                    <input type="email" id="add-email" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700">網頁</label>
+                    <input type="url" id="add-website" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com">
+                </div>
+            </div>
+             <div class="p-6 bg-gray-50 border-t rounded-b-lg flex justify-end">
+                <button id="submit-location-btn" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">
+                    送出審核
+                </button>
+            </div>
+        </div>
+    </div>
+
 
     <script type="module">
-        // --- 模擬資料 ---
-        const kindergartenData = [
-            { id: "A001", name: "臺北市私立仁愛幼兒園", personInCharge: "王大明", contact: "(02)2700-1234", address: "臺北市大安區仁愛路四段101號", city: "臺北市", district: "大安區", type: "私立", coordinates: [121.554, 25.038], fees: { monthly: 18000, details: "註冊費 36000/學期, 材料費 5000/學期" }, capacity: 120, facilities: { totalArea: "600 m²", indoor: "400 m²", outdoor: "200 m²" }, schoolBus: "有，3輛", penalty: true, penaltyRecords: "2023-08-15: 師生比不符，罰款6000元", subsidy: true, quasiPublic: false },
-            { id: "A002", name: "臺北市中山區市立實驗幼兒園", personInCharge: "陳美玲", contact: "(02)2591-5678", address: "臺北市中山區中山北路三段59號", city: "臺北市", district: "中山區", type: "公立", coordinates: [121.521, 25.064], fees: { monthly: 1000, details: "免註冊費，僅收活動材料費" }, capacity: 150, facilities: { totalArea: "1200 m²", indoor: "800 m²", outdoor: "400 m²" }, schoolBus: "無", penalty: false, penaltyRecords: "", subsidy: true, quasiPublic: false },
-            { id: "B001", name: "新北市板橋區準公共幼兒園", personInCharge: "李文", contact: "(02)8969-9876", address: "新北市板橋區文化路一段30號", city: "新北市", district: "板橋區", type: "準公共", coordinates: [121.463, 25.014], fees: { monthly: 3000, details: "政府補助後家長負擔費用" }, capacity: 90, facilities: { totalArea: "450 m²", indoor: "300 m²", outdoor: "150 m²" }, schoolBus: "有，1輛", penalty: false, penaltyRecords: "", subsidy: true, quasiPublic: true },
-            { id: "C001", name: "桃園市非營利幼兒園", personInCharge: "張靜宜", contact: "(03)332-5432", address: "桃園市桃園區縣府路1號", city: "桃園市", district: "桃園區", type: "非營利", coordinates: [121.301, 24.993], fees: { monthly: 2000, details: "第一胎費用" }, capacity: 100, facilities: { totalArea: "800 m²", indoor: "500 m²", outdoor: "300 m²" }, schoolBus: "有，2輛", penalty: false, penaltyRecords: "", subsidy: true, quasiPublic: false },
-            { id: "C002", name: "桃園市八德區大成幼兒園", personInCharge: "林志明", contact: "(03)366-1234", address: "桃園市八德區建國路1號", city: "桃園市", district: "八德區", type: "公立", coordinates: [121.295, 24.957], fees: { monthly: 1000, details: "免註冊費" }, capacity: 80, facilities: { totalArea: "750 m²", indoor: "500 m²", outdoor: "250 m²" }, schoolBus: "無", penalty: false, penaltyRecords: "", subsidy: true, quasiPublic: false },
-            { id: "D001", name: "臺中市西屯區快樂寶貝幼兒園", personInCharge: "黃小英", contact: "(04)2258-8888", address: "臺中市西屯區臺灣大道三段99號", city: "臺中市", district: "西屯區", type: "私立", coordinates: [120.646, 24.164], fees: { monthly: 22000, details: "包含註冊費、月費、活動費" }, capacity: 200, facilities: { totalArea: "1500 m²", indoor: "1000 m²", outdoor: "500 m²" }, schoolBus: "有，5輛", penalty: true, penaltyRecords: "2024-01-20: 超收學生，罰款12000元", subsidy: true, quasiPublic: false },
-            { id: "E001", name: "高雄市苓雅區ABC國際幼兒園", personInCharge: "Robert Chen", contact: "(07)336-1111", address: "高雄市苓雅區四維三路2號", city: "高雄市", district: "苓雅區", type: "私立", coordinates: [120.302, 22.620], fees: { monthly: 25000, details: "全美語教學" }, capacity: 80, facilities: { totalArea: "500 m²", indoor: "500 m²", outdoor: "無" }, schoolBus: "無", penalty: false, penaltyRecords: "", subsidy: false, quasiPublic: false },
-            { id: "F001", name: "臺南市安平區已停業幼兒園", personInCharge: "N/A", contact: "N/A", address: "臺南市安平區古堡街1號", city: "臺南市", district: "安平區", type: "停業", coordinates: [120.160, 22.990], fees: { monthly: 0, details: "" }, capacity: 0, facilities: { totalArea: "N/A", indoor: "N/A", outdoor: "N/A" }, schoolBus: "N/A", penalty: false, penaltyRecords: "", subsidy: false, quasiPublic: false }
-        ];
-
         // --- OpenLayers 地圖設定 ---
         
-        // 顏色定義
-        const colors = {
-            '公立': 'rgba(34, 197, 94, 0.9)',    // green-500
-            '私立': 'rgba(59, 130, 246, 0.9)',    // blue-500
-            '準公共': 'rgba(20, 184, 166, 0.9)',  // teal-500
-            '非營利': 'rgba(234, 179, 8, 0.9)',   // yellow-500
-            '停業': 'rgba(107, 114, 128, 0.8)', // gray-500
-            'penaltyStroke': 'rgba(239, 68, 68, 1)' // red-500
+        // 工廠分類顏色定義
+        const categoryColors = {
+            '材料': 'rgba(59, 130, 246, 0.9)',    // blue-500
+            '零件': 'rgba(249, 115, 22, 0.9)',  // orange-500
+            '加工': 'rgba(16, 185, 129, 0.9)',  // emerald-500
+            '設備': 'rgba(139, 92, 246, 0.9)',  // violet-500
+            '工具': 'rgba(234, 179, 8, 0.9)',   // yellow-500
+            '維修': 'rgba(239, 68, 68, 0.9)',   // red-500
+            '物流': 'rgba(20, 184, 166, 0.9)',  // teal-500
+            '其他': 'rgba(107, 114, 128, 0.8)', // gray-500
         };
         
         // 聚合點顏色調色盤
@@ -270,8 +332,8 @@
 
         // 聚合資料來源
         const clusterSource = new ol.source.Cluster({
-            distance: 50, // 聚合距離 (像素)
-            minDistance: 25, // 最小聚合距離
+            distance: 50,
+            minDistance: 25,
             source: vectorSource,
         });
 
@@ -281,58 +343,38 @@
             const size = features.length;
             
             if (size > 1) {
-                // 聚合點樣式
                 const styleKey = `cluster_${size}`;
                 if (!styleCache[styleKey]) {
-                    // 根據數量選擇顏色
                     const colorIndex = (size * 5) % clusterColorPalette.length;
                     const clusterColor = clusterColorPalette[colorIndex];
-                    
                     styleCache[styleKey] = new ol.style.Style({
                         image: new ol.style.Circle({
-                            radius: 12 + Math.min(size, 20), // 半徑隨數量增加，設定上限
-                            fill: new ol.style.Fill({
-                                color: clusterColor,
-                            }),
-                            stroke: new ol.style.Stroke({
-                                color: '#fff',
-                                width: 2,
-                            }),
+                            radius: 12 + Math.min(size, 20),
+                            fill: new ol.style.Fill({ color: clusterColor }),
+                            stroke: new ol.style.Stroke({ color: '#fff', width: 2 }),
                         }),
                         text: new ol.style.Text({
                             text: size.toString(),
-                            fill: new ol.style.Fill({
-                                color: '#fff',
-                            }),
+                            fill: new ol.style.Fill({ color: '#fff' }),
                             font: 'bold 12px sans-serif',
                         }),
                     });
                 }
                 return styleCache[styleKey];
             } else {
-                // 單一點位樣式
                 const originalFeature = features[0];
-                const type = originalFeature.get('type');
-                const hasPenalty = originalFeature.get('penalty');
-                const singleStyleKey = `single_${type}_${hasPenalty}`;
+                const category = originalFeature.get('category');
+                const singleStyleKey = `single_${category}`;
 
                 if (!styleCache[singleStyleKey]) {
-                    // 截斷名稱
-                    let name = originalFeature.get('data').name;
-                    if (name.length > 8) {
-                        name = name.substring(0, 8) + '...';
-                    }
+                    let name = originalFeature.get('name');
+                    if (name.length > 8) name = name.substring(0, 8) + '...';
                     
                     styleCache[singleStyleKey] = new ol.style.Style({
                         image: new ol.style.Circle({
                             radius: 8,
-                            fill: new ol.style.Fill({
-                                color: colors[type] || colors['停業'],
-                            }),
-                            stroke: new ol.style.Stroke({
-                                color: hasPenalty ? colors.penaltyStroke : '#ffffff',
-                                width: hasPenalty ? 3 : 2,
-                            }),
+                            fill: new ol.style.Fill({ color: categoryColors[category] || categoryColors['其他'] }),
+                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }),
                         }),
                         text: new ol.style.Text({
                             text: name,
@@ -346,12 +388,9 @@
                         })
                     });
                 }
-                 // 根據解析度決定是否顯示文字
                 const resolution = map.getView().getResolution();
                 const clonedStyle = styleCache[singleStyleKey].clone();
-                if (resolution > 50) { // 縮太遠時不顯示文字
-                    clonedStyle.setText(null);
-                }
+                if (resolution > 50) clonedStyle.setText(null);
                 return clonedStyle;
             }
         }
@@ -361,20 +400,18 @@
             style: clusterStyleFunction,
         });
 
-        // 地圖初始化 (預設視圖為台灣)
+        // 地圖初始化
         const map = new ol.Map({
             target: 'map',
             layers: [nlscLayer, clusterLayer],
             view: new ol.View({
-                center: ol.proj.fromLonLat([120.9, 23.9]), // 台灣中心點
+                center: ol.proj.fromLonLat([120.9, 23.9]),
                 zoom: 8 
             }),
             controls: [
                 new ol.control.Zoom(),
                 new ol.control.Rotate(),
-                new ol.control.Attribution({
-                    collapsible: false
-                })
+                new ol.control.Attribution({ collapsible: false })
             ]
         });
 
@@ -385,11 +422,8 @@
 
         const infoOverlay = new ol.Overlay({
             element: popupContainer,
-            autoPan: {
-                animation: {
-                    duration: 250,
-                },
-            },
+            autoPan: true,
+            autoPanAnimation: { duration: 250 },
         });
         map.addOverlay(infoOverlay);
 
@@ -408,33 +442,25 @@
         });
         map.addOverlay(userLocationOverlay);
 
-
         map.on('singleclick', function (evt) {
-            const feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
-                return feature;
-            });
-            
-            infoOverlay.setPosition(undefined); // 先關閉彈窗
+            const feature = map.forEachFeatureAtPixel(evt.pixel, function (f) { return f; });
+            infoOverlay.setPosition(undefined);
 
             if (feature) {
                 const features = feature.get('features');
                 if (features.length > 1) {
-                    // 如果點擊的是聚合點，放大地圖
                     const extent = ol.extent.createEmpty();
                     features.forEach(f => ol.extent.extend(extent, f.getGeometry().getExtent()));
                     map.getView().fit(extent, { duration: 1000, padding: [50, 50, 50, 50], maxZoom: 16 });
                 } else {
-                    // 如果是單一點位，放大地圖並顯示資訊
                     const originalFeature = features[0];
                     const coordinates = originalFeature.getGeometry().getCoordinates();
-                    const data = originalFeature.get('data');
+                    const data = originalFeature.getProperties();
                     
-                    // 計算新的中心點，讓目標點位在畫面的中下方
                     const view = map.getView();
-                    const zoom = 16; // 500m 視野的縮放等級
+                    const zoom = 16;
                     const resolution = view.getResolutionForZoom(zoom);
-                    const mapSize = map.getSize(); // [width, height] in pixels
-                    // 向上平移 1/4 的螢幕高度 (in map units)
+                    const mapSize = map.getSize();
                     const verticalShift = (mapSize[1] / 4) * resolution; 
                     
                     view.animate({
@@ -443,113 +469,192 @@
                         duration: 800
                     });
 
-                    let penaltyInfo = data.penalty 
-                        ? `<div class="mt-2 p-2 bg-red-100 border-l-4 border-red-500 text-red-700">
-                             <p class="font-bold">裁罰記錄</p>
-                             <p>${data.penaltyRecords}</p>
-                           </div>`
-                        : '<p class="text-sm text-gray-500">無裁罰記錄</p>';
+                    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lon}`;
                     
-                    // 建立 Google Maps 導航連結
-                    const destination = `${data.coordinates[1]},${data.coordinates[0]}`;
-                    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
+                    let productText = data.product || '';
+                    let productDisplay = productText.length > 40 ? productText.substring(0, 40) + '...' : productText;
+                    let showMoreBtn = productText.length > 40 ? `<button id="show-more-product" class="text-blue-500 hover:underline text-sm ml-1">顯示更多</button>` : '';
+
+                    let buttonsHtml = `
+                        <a href="${googleMapsUrl}" target="_blank" class="flex-1 bg-blue-600 text-white py-2 px-3 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 text-center text-sm">
+                            <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.71,11.29l-9-9a1,1,0,0,0-1.42,0l-9,9a1,1,0,0,0,0,1.42l9,9a1,1,0,0,0,1.42,0l9-9A1,1,0,0,0,21.71,11.29ZM12,20.59,4.41,13,12,5.41,19.59,13Z"/></svg>
+                            <span>導航</span>
+                        </a>`;
+                    if(data.phone) buttonsHtml += `<a href="tel:${data.phone}" class="flex-1 bg-gray-200 text-gray-700 py-2 px-3 rounded-md hover:bg-gray-300 transition-colors flex items-center justify-center space-x-2 text-center text-sm"><span>電話</span></a>`;
+                    if(data.fax) buttonsHtml += `<a href="fax:${data.fax}" class="flex-1 bg-gray-200 text-gray-700 py-2 px-3 rounded-md hover:bg-gray-300 transition-colors flex items-center justify-center space-x-2 text-center text-sm"><span>傳真</span></a>`;
+                    if(data.email) buttonsHtml += `<a href="mailto:${data.email}" class="flex-1 bg-gray-200 text-gray-700 py-2 px-3 rounded-md hover:bg-gray-300 transition-colors flex items-center justify-center space-x-2 text-center text-sm"><span>信箱</span></a>`;
+                    if(data.website) buttonsHtml += `<a href="${data.website}" target="_blank" class="flex-1 bg-gray-200 text-gray-700 py-2 px-3 rounded-md hover:bg-gray-300 transition-colors flex items-center justify-center space-x-2 text-center text-sm"><span>網頁</span></a>`;
+
 
                     popupContent.innerHTML = `
                         <h3 class="text-lg font-bold text-gray-800">${data.name}</h3>
-                        <p class="text-sm text-gray-600 mb-2">${data.type}</p>
-                        <div class="space-y-1 text-sm">
-                            <p><strong>負責人:</strong> ${data.personInCharge}</p>
+                        <p class="text-sm font-semibold mb-2" style="color: ${categoryColors[data.category] || categoryColors['其他']}">${data.category}</p>
+                        <div class="space-y-1 text-sm custom-scrollbar pr-2" style="max-height: 150px; overflow-y: auto;">
                             <p><strong>地址:</strong> ${data.address}</p>
-                            <p><strong>聯絡方式:</strong> ${data.contact}</p>
-                            <p><strong>月費:</strong> ${data.fees.monthly > 0 ? data.fees.monthly.toLocaleString() + ' 元' : 'N/A'}</p>
-                            <p class="text-xs text-gray-500">${data.fees.details}</p>
-                            <p><strong>核定人數:</strong> ${data.capacity} 人</p>
-                            <p><strong>設施:</strong> ${data.facilities.totalArea} (室內 ${data.facilities.indoor}, 室外 ${data.facilities.outdoor})</p>
-                            <p><strong>專用車:</strong> ${data.schoolBus}</p>
+                            <p><strong>聯絡方式:</strong> ${data.contact || '未提供'}</p>
+                            <p><strong>營業時間:</strong> ${data.hours || '未提供'}</p>
+                            <div><strong>公司產品:</strong> <span id="product-short-text">${productDisplay}</span> ${showMoreBtn}</div>
                         </div>
-                        ${penaltyInfo}
-                        <div class="mt-4">
-                            <a href="${googleMapsUrl}" target="_blank" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 text-center">
-                                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.71,11.29l-9-9a1,1,0,0,0-1.42,0l-9,9a1,1,0,0,0,0,1.42l9,9a1,1,0,0,0,1.42,0l9-9A1,1,0,0,0,21.71,11.29ZM12,20.59,4.41,13,12,5.41,19.59,13Z"/></svg>
-                                <span>導航前往</span>
-                            </a>
-                        </div>
+                        <div class="mt-4 flex items-center gap-2 flex-wrap">${buttonsHtml}</div>
                     `;
+                    $('#product-short-text').data('fulltext', productText);
+                    $('#product-short-text').data('name', data.name);
                     infoOverlay.setPosition(coordinates);
                 }
             }
         });
 
-        // --- 篩選與互動邏輯 (jQuery) ---
+        // --- 資料與互動邏輯 (jQuery) ---
         $(document).ready(function() {
             let allFeatures = [];
+            let isLoggedIn = false; // 模擬登入狀態
+            const sheetId = '1MfZimoJ04URFzX2Y3F5KsFBZe6ccrH0TuSSL6letLcM';
+            const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
 
-            function loadData() {
-                kindergartenData.forEach(data => {
-                    const feature = new ol.Feature({
-                        geometry: new ol.geom.Point(ol.proj.fromLonLat(data.coordinates)),
-                        type: data.type,
-                        penalty: data.penalty,
-                        data: data
+            function showNotification(message, isError = false) {
+                const $notification = $('#notification');
+                $notification.text(message).removeClass('hidden');
+                if (isError) {
+                    $notification.removeClass('bg-yellow-500 bg-blue-500').addClass('bg-red-500');
+                } else {
+                    $notification.removeClass('bg-red-500 bg-yellow-500').addClass('bg-blue-500');
+                }
+                setTimeout(() => $notification.addClass('hidden'), 5000);
+            }
+
+            async function loadData() {
+                showNotification('正在從 Google 試算表載入資料...', false);
+                try {
+                    const response = await fetch(sheetUrl);
+                    if (!response.ok) {
+                        throw new Error(`Network response was not ok: ${response.statusText}`);
+                    }
+                    const csvText = await response.text();
+                    
+                    Papa.parse(csvText, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            const factoryData = results.data;
+                            allFeatures = [];
+                            factoryData.forEach((data, index) => {
+                                if (data['審核'] && data['審核'].toUpperCase() === 'TRUE') {
+                                    const lon = parseFloat(data['經度']);
+                                    const lat = parseFloat(data['緯度']);
+                                    if (data['工廠名稱'] && !isNaN(lon) && !isNaN(lat)) {
+                                        const feature = new ol.Feature({
+                                            geometry: new ol.geom.Point(ol.proj.fromLonLat([lon, lat])),
+                                            name: data['工廠名稱'],
+                                            category: data['分類'] || '其他',
+                                            address: data['地址'],
+                                            contact: data['聯絡方式'],
+                                            hours: data['營業時間'],
+                                            product: data['公司產品'],
+                                            phone: data['電話'],
+                                            fax: data['傳真'],
+                                            email: data['信箱'],
+                                            website: data['網頁'],
+                                            lon: lon,
+                                            lat: lat
+                                        });
+                                        feature.setId(index);
+                                        allFeatures.push(feature);
+                                    }
+                                }
+                            });
+                            vectorSource.addFeatures(allFeatures);
+                            populateFiltersAndLegend();
+                            $('#notification').addClass('hidden');
+                        },
+                        error: function(err) {
+                             showNotification('解析試算表資料時發生錯誤！', true);
+                             console.error("PapaParse Parsing Error:", err);
+                        }
                     });
-                    feature.setId(data.id); // 給 feature 一個 ID
-                    allFeatures.push(feature);
-                });
-                vectorSource.addFeatures(allFeatures);
-                populateFilters();
+
+                } catch (error) {
+                    showNotification('無法載入 Google 試算表資料！請檢查連結是否已發佈。', true);
+                    console.error("Fetch Error:", error);
+                }
             }
 
-            function populateFilters() {
-                const cities = {};
-                kindergartenData.forEach(d => {
-                    if (!cities[d.city]) {
-                        cities[d.city] = new Set();
-                    }
-                    cities[d.city].add(d.district);
-                });
+            function populateFiltersAndLegend() {
+                const categories = [...new Set(allFeatures.map(f => f.get('category')))].sort();
+                const $categorySelect = $('#category-select, #add-category');
+                const $legendContent = $('#legend-content');
+                $categorySelect.html('<option value="">所有分類</option>');
+                $legendContent.html('');
 
-                const $citySelect = $('#city-select');
-                Object.keys(cities).sort().forEach(city => {
-                    $citySelect.append(`<option value="${city}">${city}</option>`);
-                });
-
-                $citySelect.on('change', function() {
-                    const selectedCity = $(this).val();
-                    const $districtSelect = $('#district-select');
-                    $districtSelect.html('<option value="">所有行政區</option>');
-                    if (selectedCity && cities[selectedCity]) {
-                        [...cities[selectedCity]].sort().forEach(district => {
-                            $districtSelect.append(`<option value="${district}">${district}</option>`);
-                        });
-                    }
+                categories.forEach(category => {
+                     if (categoryColors[category]) {
+                        $categorySelect.append(`<option value="${category}">${category}</option>`);
+                        const color = categoryColors[category];
+                        $legendContent.append(`
+                            <div class="flex items-center">
+                                <span class="h-3 w-3 rounded-full mr-1.5 border border-gray-400" style="background-color: ${color}"></span>
+                                ${category}
+                            </div>
+                        `);
+                     }
                 });
             }
+            
+            // 營業時間解析與判斷
+            function isCurrentlyOpen(hoursString) {
+                if (!hoursString || typeof hoursString !== 'string') return false;
+                
+                const now = new Date();
+                const currentDay = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+                const currentTime = now.getHours() * 100 + now.getMinutes();
+                
+                const dayMap = { '日': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6 };
+
+                const parts = hoursString.split(/;|\s+/).filter(p => p);
+
+                for (const part of parts) {
+                    const match = part.match(/週([一二三四五六日])-([一二三四五六日])\s*(\d{2}):(\d{2})-(\d{2}):(\d{2})|(\d{2}):(\d{2})-(\d{2}):(\d{2})/);
+                    if (!match) continue;
+
+                    let startDay, endDay;
+                    let startTime, endTime;
+
+                    if (match[1]) { // 有日期的情況
+                        startDay = dayMap[match[1]];
+                        endDay = dayMap[match[2]];
+                        startTime = parseInt(match[3]) * 100 + parseInt(match[4]);
+                        endTime = parseInt(match[5]) * 100 + parseInt(match[6]);
+                    } else { // 每日相同時間
+                        startDay = 0; endDay = 6;
+                        startTime = parseInt(match[7]) * 100 + parseInt(match[8]);
+                        endTime = parseInt(match[9]) * 100 + parseInt(match[10]);
+                    }
+                    
+                    if (currentDay >= startDay && currentDay <= endDay) {
+                        if (currentTime >= startTime && currentTime < endTime) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
 
             function applyFilters() {
-                const city = $('#city-select').val();
-                const district = $('#district-select').val();
+                const category = $('#category-select').val();
                 const keyword = $('#keyword-search').val().toLowerCase();
-                const minFee = parseInt($('#min-fee').val()) || 0;
-                const maxFee = parseInt($('#max-fee').val()) || Infinity;
-                const hasPenalty = $('#has-penalty').is(':checked');
+                const isOpenOnly = $('#is-open-checkbox').is(':checked');
                 
                 vectorSource.clear();
                 
                 const filteredFeatures = allFeatures.filter(feature => {
-                    const data = feature.get('data');
+                    if (category && feature.get('category') !== category) return false;
                     
-                    if (city && data.city !== city) return false;
-                    if (district && data.district !== district) return false;
-                    if (hasPenalty && !data.penalty) return false;
-                    
-                    const fee = data.fees.monthly;
-                    if (fee < minFee || fee > maxFee) return false;
-                    
+                    if (isOpenOnly && !isCurrentlyOpen(feature.get('hours'))) return false;
+
                     if (keyword) {
-                        const nameMatch = data.name.toLowerCase().includes(keyword);
-                        const personMatch = data.personInCharge.toLowerCase().includes(keyword);
-                        const addressMatch = data.address.toLowerCase().includes(keyword);
-                        if (!nameMatch && !personMatch && !addressMatch) return false;
+                        const nameMatch = feature.get('name').toLowerCase().includes(keyword);
+                        const addressMatch = feature.get('address').toLowerCase().includes(keyword);
+                        if (!nameMatch && !addressMatch) return false;
                     }
                     
                     return true;
@@ -560,12 +665,9 @@
             }
             
             function resetFilters() {
-                $('#city-select').val('');
-                $('#district-select').html('<option value="">所有行政區</option>').val('');
+                $('#category-select').val('');
                 $('#keyword-search').val('');
-                $('#min-fee').val('');
-                $('#max-fee').val('');
-                $('#has-penalty').prop('checked', false);
+                $('#is-open-checkbox').prop('checked', false);
                 vectorSource.clear();
                 vectorSource.addFeatures(allFeatures);
             }
@@ -573,14 +675,102 @@
             // Modal 控制
             $('#open-filter-modal').on('click', () => $('#filter-modal').removeClass('hidden'));
             $('#close-filter-modal').on('click', () => $('#filter-modal').addClass('hidden'));
+            $('#close-product-modal').on('click', () => $('#product-modal').addClass('hidden'));
+            $('#close-add-location-modal').on('click', () => $('#add-location-modal').addClass('hidden'));
 
             $('#filter-btn').on('click', applyFilters);
             $('#reset-btn').on('click', resetFilters);
+
+            // 顯示更多產品資訊
+            $(document).on('click', '#show-more-product', function() {
+                const fullText = $(this).siblings('#product-short-text').data('fulltext');
+                const name = $(this).siblings('#product-short-text').data('name');
+                $('#product-modal-title').text(name + ' - 公司產品');
+                $('#product-modal-content').text(fullText);
+                $('#product-modal').removeClass('hidden');
+            });
             
+            // --- 新增店家功能 ---
+            $('#login-btn').on('click', function() {
+                // 此處為模擬登入，實際應用需串接 Google OAuth 2.0
+                isLoggedIn = true;
+                $(this).addClass('hidden');
+                $('#add-info').removeClass('hidden');
+                showNotification('已模擬登入，您現在可以新增店家。', false);
+            });
+
+            map.on('contextmenu', function(evt) {
+                if (!isLoggedIn) {
+                    showNotification('請先登入才能新增店家！', true);
+                    return;
+                }
+                evt.preventDefault(); // 防止瀏覽器右鍵選單
+                const coords = ol.proj.toLonLat(evt.coordinate);
+                
+                // 使用 Nominatim 進行反向地理編碼
+                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lon=${coords[0]}&lat=${coords[1]}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        $('#add-address').val(data.display_name || '無法自動定位地址');
+                    })
+                    .catch(error => {
+                        console.error('Reverse geocoding error:', error);
+                        $('#add-address').val('無法自動定位地址');
+                    });
+                
+                $('#add-location-modal').removeClass('hidden');
+            });
+
+            $('#submit-location-btn').on('click', function() {
+                // 檢查必填欄位
+                const requiredFields = ['#add-name', '#add-category', '#add-address', '#add-contact', '#add-hours', '#add-product'];
+                let isValid = true;
+                requiredFields.forEach(id => {
+                    if (!$(id).val()) {
+                        $(id).addClass('border-red-500');
+                        isValid = false;
+                    } else {
+                        $(id).removeClass('border-red-500');
+                    }
+                });
+
+                if (!isValid) {
+                    alert('請填寫所有必填欄位 (*)');
+                    return;
+                }
+
+                // ** 重要提示 **
+                // 以下程式碼為模擬送出。實際應用中，直接從前端寫入 Google 試算表有極高的安全風險。
+                // 正確做法是將資料送到您自己的後端伺服器 (e.g., Google Cloud Function)，
+                // 再由後端伺服器驗證並寫入 Google 試算表。
+                
+                const newData = {
+                    '工廠名稱': $('#add-name').val(),
+                    '分類': $('#add-category').val(),
+                    '地址': $('#add-address').val(),
+                    '聯絡方式': $('#add-contact').val(),
+                    '營業時間': $('#add-hours').val(),
+                    '公司產品': $('#add-product').val(),
+                    '電話': $('#add-phone').val(),
+                    '傳真': $('#add-fax').val(),
+                    '信箱': $('#add-email').val(),
+                    '網頁': $('#add-website').val(),
+                };
+                
+                console.log("模擬送出資料:", newData);
+                alert("資料已送出審核！感謝您的貢獻。\n（此為模擬操作，資料並未實際寫入）");
+                
+                $('#add-location-modal').addClass('hidden');
+                // 清空表單
+                $('#add-location-modal input, #add-location-modal textarea').val('');
+                $('#add-location-modal select').prop('selectedIndex', 0);
+            });
+
+
             // --- 地理定位邏輯 ---
             function initializeUserLocation() {
                 if (!navigator.geolocation) {
-                    $('#notification').text('您的瀏覽器不支援地理定位').removeClass('hidden');
+                    showNotification('您的瀏覽器不支援地理定位');
                     return;
                 }
 
@@ -591,7 +781,7 @@
                         
                         map.getView().animate({
                             center: userPosition,
-                            zoom: 16, // Zoom level for approx. 500m diameter
+                            zoom: 16,
                             duration: 1500
                         });
                         
@@ -600,7 +790,7 @@
                     },
                     (error) => {
                         console.warn(`地理定位失敗: ${error.message}`);
-                        $('#notification').removeClass('hidden');
+                        showNotification('無法取得您的位置，將顯示全台地圖。');
                     }
                 );
             }
