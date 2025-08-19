@@ -3,8 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Google Sign-In Client ID -->
-    <meta name="google-signin-client_id" content="35839698842-b73h9naufqdm7d0j378882k1e6aq6064.apps.googleusercontent.com">
     <title>台灣加工廠資訊地圖</title>
     
     <!-- OpenLayers CSS -->
@@ -22,8 +20,8 @@
     <!-- PapaParse for CSV parsing -->
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     
-    <!-- Google Platform Library -->
-    <script src="https://apis.google.com/js/platform.js" async defer></script>
+    <!-- Google Identity Services Library -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <style>
         /* 自定義樣式 */
@@ -187,9 +185,19 @@
             
             <!-- 登入/新增說明按鈕 -->
             <div id="login-status" class="absolute top-4 left-4 z-10">
-                 <div id="g-signin2-wrapper" class="bg-white rounded-lg shadow-lg">
-                    <div class="g-signin2" data-onsuccess="onSignIn"></div>
-                 </div>
+                <div id="g_id_onload"
+                     data-client_id="35839698842-b73h9naufqdm7d0j378882k1e6aq6064.apps.googleusercontent.com"
+                     data-callback="handleCredentialResponse"
+                     data-auto_prompt="false">
+                </div>
+                <div class="g_id_signin" 
+                     data-type="standard"
+                     data-size="large"
+                     data-theme="outline"
+                     data-text="sign_in_with"
+                     data-shape="rectangular"
+                     data-logo_alignment="left">
+                </div>
                  <div id="add-info" class="bg-white text-gray-700 py-2 px-4 rounded-lg shadow-lg items-center space-x-2 hidden">
                     <span id="user-name" class="font-bold"></span>
                     <span>已登入</span>
@@ -318,10 +326,21 @@
 
     <script>
         // This function needs to be in the global scope for the Google API to call it.
-        function onSignIn(googleUser) {
-            const event = new CustomEvent('google-signin-success', { detail: googleUser });
+        function handleCredentialResponse(response) {
+            // Decode the JWT to get user profile
+            const base64Url = response.credential.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            
+            const profile = JSON.parse(jsonPayload);
+            
+            const event = new CustomEvent('google-signin-success', { detail: profile });
             window.dispatchEvent(event);
         }
+        // Make it globally accessible
+        window.handleCredentialResponse = handleCredentialResponse;
     </script>
 
     <script type="module">
@@ -908,24 +927,21 @@
 
             // --- Google Sign-In Logic ---
             window.addEventListener('google-signin-success', (e) => {
-                const googleUser = e.detail;
-                var profile = googleUser.getBasicProfile();
+                const profile = e.detail;
                 isLoggedIn = true;
-                $('#g-signin2-wrapper').addClass('hidden');
+                $('.g_id_signin').hide();
                 $('#add-info').removeClass('hidden').addClass('flex');
-                $('#user-name').text(profile.getName());
-                showNotification(`歡迎，${profile.getName()}！您現在可以新增店家。`, false);
+                $('#user-name').text(profile.name);
+                showNotification(`歡迎，${profile.name}！您現在可以新增店家。`, false);
             });
 
             $('#sign-out-btn').on('click', function(e) {
                 e.preventDefault();
-                var auth2 = gapi.auth2.getAuthInstance();
-                auth2.signOut().then(function () {
-                    isLoggedIn = false;
-                    $('#g-signin2-wrapper').removeClass('hidden');
-                    $('#add-info').removeClass('flex').addClass('hidden');
-                    showNotification('您已成功登出。');
-                });
+                google.accounts.id.disableAutoSelect();
+                isLoggedIn = false;
+                $('.g_id_signin').show();
+                $('#add-info').removeClass('flex').addClass('hidden');
+                showNotification('您已成功登出。');
             });
 
 
