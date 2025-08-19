@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣加工廠資訊地圖0822</title>
+    <title>台灣加工廠資訊地圖</title>
     
     <!-- OpenLayers CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css">
@@ -489,7 +489,7 @@
                                             name: data['工廠名稱'], 
                                             category: data['分類'] || '其他', 
                                             address: data['地址'],
-                                            contact: data['聯絡方式'], // *** CHANGE HERE *** Unify to use 'contact'
+                                            contact: data['聯絡方式'], 
                                             hours: data['營業時間'], 
                                             product: data['公司產品'],
                                             fax: data['傳真'], 
@@ -523,11 +523,12 @@
                 const $categorySelect = $('#category-select, #add-category');
                 const $legendContent = $('#legend-content');
                 $categorySelect.html('<option value="">所有分類</option>');
+                 $('#add-category').html(''); // Clear add-category dropdown specifically
                 $legendContent.html('');
                 
                 allCategories.forEach(category => {
                      if (categoryColors[category]) {
-                        $categorySelect.first().append(`<option value="${category}">${category}</option>`);
+                        $('#category-select').append(`<option value="${category}">${category}</option>`);
                         $('#add-category').append($('<option>', { value: category, text: category }));
                         const color = categoryColors[category];
                         $legendContent.append(`<div class="flex items-center"><span class="h-3 w-3 rounded-full mr-1.5 border border-gray-400" style="background-color: ${color}"></span>${category}</div>`);
@@ -723,7 +724,6 @@
                         const disabledClass = "bg-gray-100 text-gray-400 cursor-not-allowed";
 
                         let buttonsHtml = `<a href="${googleMapsUrl}" target="_blank" class="${buttonClass} ${activeClass}" title="導航"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></a>`;
-                        // *** CHANGE HERE *** Use data.contact for the phone button
                         buttonsHtml += data.contact ? `<a href="tel:${data.contact}" class="${buttonClass} ${activeClass}" title="電話"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg></a>` : `<span class="${buttonClass} ${disabledClass}" title="無電話"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg></span>`;
                         buttonsHtml += data.email ? `<a href="mailto:${data.email}" class="${buttonClass} ${activeClass}" title="信箱"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg></a>` : `<span class="${buttonClass} ${disabledClass}" title="無信箱"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg></span>`;
                         buttonsHtml += data.website ? `<a href="${data.website}" target="_blank" class="${buttonClass} ${activeClass}" title="網站"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/></svg></a>` : `<span class="${buttonClass} ${disabledClass}" title="無網站"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/></svg></span>`;
@@ -803,6 +803,39 @@
             $('#add-location-form').on('submit', function(e) {
                 e.preventDefault(); 
                 const $submitBtn = $('#submit-location-btn');
+                
+                // *** VALIDATION LOGIC STARTS HERE ***
+                let isValid = true;
+                const $contactInput = $('#add-contact');
+                const $productInput = $('#add-product');
+
+                // Reset previous validation styles
+                $contactInput.removeClass('border-red-500');
+                $productInput.removeClass('border-red-500');
+
+                // Validate Contact Number (at least 6 digits)
+                const contactValue = $contactInput.val().replace(/[^0-9]/g, ''); // Remove non-digits
+                if (contactValue.length < 6) {
+                    showNotification('聯絡方式(電話)至少需要6個數字。', 'error');
+                    $contactInput.addClass('border-red-500');
+                    isValid = false;
+                }
+
+                // Validate Product Description (at least 6 characters)
+                const productValue = $productInput.val().trim();
+                if (productValue.length < 6) {
+                    if (isValid) { // Show only one notification at a time to avoid overlap
+                        showNotification('公司產品至少需要6個文字。', 'error');
+                    }
+                    $productInput.addClass('border-red-500');
+                    isValid = false;
+                }
+
+                if (!isValid) {
+                    return; // Stop form submission if validation fails
+                }
+                // *** VALIDATION LOGIC ENDS HERE ***
+
                 $submitBtn.prop('disabled', true).find('.submit-text').addClass('hidden');
                 $submitBtn.find('.spinner').removeClass('hidden');
                 let hoursStrings = [], hoursValid = true;
