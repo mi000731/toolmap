@@ -516,14 +516,20 @@
                     
                     const view = map.getView();
                     const zoom = 16;
-                    const resolution = view.getResolutionForZoom(zoom);
-                    const mapSize = map.getSize();
-                    const verticalShift = (mapSize[1] / 4) * resolution; 
                     
+                    // FIX: Staged animation for better centering
                     view.animate({
-                        center: [coordinates[0], coordinates[1] + verticalShift],
+                        center: coordinates,
+                        duration: 500
+                    }, {
                         zoom: zoom,
                         duration: 800
+                    }, () => {
+                        // After animations, calculate final shift
+                        const resolution = view.getResolutionForZoom(zoom);
+                        const mapSize = map.getSize();
+                        const verticalShift = (mapSize[1] / 4) * resolution;
+                        view.centerOn([coordinates[0], coordinates[1] + verticalShift], mapSize, [mapSize[0]/2, mapSize[1]/2]);
                     });
 
                     const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lon}`;
