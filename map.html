@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣加工廠資訊地圖0723</title>
+    <title>台灣加工廠資訊地圖</title>
     
     <!-- OpenLayers CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css">
@@ -427,8 +427,6 @@
             target: 'map', 
             layers: [nlscLayer, clusterLayer],
             view: new ol.View({ center: ol.proj.fromLonLat([120.9, 23.9]), zoom: 8 }),
-            // *** FIX STARTS HERE ***
-            // Correctly initialize controls for modern OpenLayers versions
             controls: [
                 new ol.control.Zoom(),
                 new ol.control.Rotate(),
@@ -436,7 +434,6 @@
                     collapsible: false
                 })
             ]
-            // *** FIX ENDS HERE ***
         });
 
         const popupContainer = document.getElementById('popup');
@@ -611,7 +608,9 @@
             let isAddModeActive = false;
             let longPressTimeout = null;
             let longPressFired = false;
-            let isDragging = false;
+            
+            // *** REFACTORED DRAG LOGIC STARTS HERE ***
+            let isDraggingMarker = false;
 
             function startAddLocationProcess(coordinate) {
                 if (!isLoggedIn) {
@@ -629,6 +628,14 @@
                 });
                 map.addOverlay(tempMarker);
                 
+                // Add drag interaction to the marker element itself
+                markerEl.addEventListener('pointerdown', (e) => {
+                    isDraggingMarker = true;
+                    map.on('pointermove', handlePointerMove);
+                    map.on('pointerup', handlePointerUp);
+                    e.stopPropagation(); // Prevent map panning
+                });
+
                 $('#add-location-form')[0].reset();
                 $('#hours-container').empty();
                 createTimeSlot();
@@ -642,6 +649,23 @@
                     maxZoom: 17
                 });
             }
+
+            function handlePointerMove(evt) {
+                if (isDraggingMarker) {
+                    tempMarker.setPosition(evt.coordinate);
+                }
+            }
+
+            function handlePointerUp(evt) {
+                if (isDraggingMarker) {
+                    const lonLat = ol.proj.toLonLat(evt.coordinate);
+                    reverseGeocode(lonLat[0], lonLat[1]);
+                    isDraggingMarker = false;
+                    map.un('pointermove', handlePointerMove);
+                    map.un('pointerup', handlePointerUp);
+                }
+            }
+            // *** REFACTORED DRAG LOGIC ENDS HERE ***
             
             $('#close-add-location-modal').on('click', () => {
                 $('#add-location-modal').removeClass('is-open');
@@ -664,8 +688,8 @@
             });
 
             map.on('singleclick', function (evt) {
-                if (longPressFired || isDragging) {
-                    longPressFired = isDragging = false;
+                if (longPressFired || isDraggingMarker) {
+                    longPressFired = false;
                     return;
                 }
                 if (isAddModeActive) {
@@ -722,9 +746,6 @@
             });
 
             map.on('pointerdown', (evt) => {
-                if (tempMarker && tempMarker.getElement().getBoundingClientRect().intersects(map.getPixelFromCoordinate(evt.coordinate))) {
-                    isDragging = true;
-                }
                 if (evt.originalEvent.pointerType !== 'touch') return;
                 longPressFired = false;
                 longPressTimeout = setTimeout(() => {
@@ -733,17 +754,11 @@
                     longPressTimeout = null;
                 }, 500);
             });
-            map.on('pointerdrag', (evt) => {
+             map.on('pointerdrag', () => {
                 if (longPressTimeout) clearTimeout(longPressTimeout);
-                if (isDragging) tempMarker.setPosition(evt.coordinate);
             });
-            map.on('pointerup', (evt) => {
+            map.on('pointerup', () => {
                 if (longPressTimeout) clearTimeout(longPressTimeout);
-                if (isDragging) {
-                    isDragging = false;
-                    const lonLat = ol.proj.toLonLat(evt.coordinate);
-                    reverseGeocode(lonLat[0], lonLat[1]);
-                }
             });
 
             const createTimeSlot = () => {
@@ -865,3 +880,33 @@
     </script>
 </body>
 </html>
+" and am asking a follow up question.
+I have a problem with the selected code, which I have pasted below:
+```html
+            map.on('pointerdown', (evt) => {
+                if (tempMarker && tempMarker.getElement().getBoundingClientRect().intersects(map.getPixelFromCoordinate(evt.coordinate))) {
+                    isDragging = true;
+                }
+                if (evt.originalEvent.pointerType !== 'touch') return;
+                longPressFired = false;
+                longPressTimeout = setTimeout(() => {
+                    longPressFired = true;
+                    startAddLocationProcess(evt.coordinate);
+                    longPressTimeout = null;
+                }, 500);
+            });
+            map.on('pointerdrag', (evt) => {
+                if (longPressTimeout) clearTimeout(longPressTimeout);
+                if (isDragging) tempMarker.setPosition(evt.coordinate);
+            });
+            map.on('pointerup', (evt) => {
+                if (longPressTimeout) clearTimeout(longPressTimeout);
+                if (isDragging) {
+                    isDragging = false;
+                    const lonLat = ol.proj.toLonLat(evt.coordinate);
+                    reverseGeocode(lonLat[0], lonLat[1]);
+                }
+            });
+```
+The problem is that the code is not working as expected. Can you help me fix it?
+For intro and outro, respond in the Chinese (Traditional) languag
