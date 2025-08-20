@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>超認真工業指南針</title>
+    <title>超認真指南針</title>
     
     <!-- OpenLayers CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css">
@@ -247,16 +247,16 @@
                     <hr>
                     <p class="text-sm text-gray-500">以下為選填項目</p>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">傳真</label>
-                        <input type="text" id="add-fax" name="fax" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                    </div>
-                    <div>
                         <label class="block text-sm font-medium text-gray-700">信箱</label>
                         <input type="email" id="add-email" name="email" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">網頁</label>
                         <input type="url" id="add-website" name="website" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">傳真</label>
+                        <input type="text" id="add-fax" name="fax" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
                     </div>
                 </div>
             </form>
@@ -637,8 +637,6 @@
             
             let tempMarker = null;
             let isAddModeActive = false;
-            let longPressTimeout = null;
-            let longPressFired = false;
             let isDraggingMarker = false;
 
             function startAddLocationProcess(coordinate) {
@@ -719,11 +717,12 @@
                 }
             });
 
+            map.on('dblclick', function(evt) {
+                // Double tap/click to add a new location
+                startAddLocationProcess(evt.coordinate);
+            });
+
             map.on('singleclick', function (evt) {
-                if (longPressFired || isDraggingMarker) {
-                    longPressFired = false;
-                    return;
-                }
                 if (isAddModeActive) {
                     startAddLocationProcess(evt.coordinate);
                     isAddModeActive = false;
@@ -776,23 +775,7 @@
                 evt.preventDefault();
                 startAddLocationProcess(map.getEventCoordinate(evt));
             });
-
-            map.on('pointerdown', (evt) => {
-                if (evt.originalEvent.pointerType !== 'touch') return;
-                longPressFired = false;
-                longPressTimeout = setTimeout(() => {
-                    longPressFired = true;
-                    startAddLocationProcess(evt.coordinate);
-                    longPressTimeout = null;
-                }, 500);
-            });
-             map.on('pointerdrag', () => {
-                if (longPressTimeout) clearTimeout(longPressTimeout);
-            });
-            map.on('pointerup', () => {
-                if (longPressTimeout) clearTimeout(longPressTimeout);
-            });
-
+            
             const createTimeSlot = () => {
                 $('#hours-container').append(`<div class="time-slot-row flex flex-wrap sm:flex-nowrap items-center gap-x-2 gap-y-1"><select name="start_day" class="p-2 border border-gray-300 rounded-md text-sm w-20" required><option value="一">一</option><option value="二">二</option><option value="三">三</option><option value="四">四</option><option value="五">五</option><option value="六">六</option><option value="日">日</option></select><span class="hidden sm:inline">-</span><select name="end_day" class="p-2 border border-gray-300 rounded-md text-sm w-20" required><option value="一">一</option><option value="二">二</option><option value="三">三</option><option value="四">四</option><option value="五" selected>五</option><option value="六">六</option><option value="日">日</option></select><input type="time" name="start_time" class="flex-grow p-2 border border-gray-300 rounded-md" value="09:00" required><span class="hidden sm:inline">-</span><input type="time" name="end_time" class="flex-grow p-2 border border-gray-300 rounded-md" value="18:00" required><button type="button" class="remove-time-slot-btn text-red-500 hover:text-red-700 p-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button></div>`);
             };
