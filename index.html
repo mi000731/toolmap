@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>超認真指南針</title>
+    <title>台灣加工廠資訊地圖0906</title>
     
     <!-- OpenLayers CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css">
@@ -467,6 +467,19 @@
                 }
                 setTimeout(() => $notification.addClass('hidden'), 5000);
             }
+            
+            function getOffsetForIndex(index) {
+                if (index === 0) return { dx: 0, dy: 0 };
+                let x = 0, y = 0, dx = 0, dy = -1;
+                for (let i = 0; i < index; i++) {
+                    if (x === y || (x < 0 && x === -y) || (x > 0 && x === 1 - y)) {
+                        [dx, dy] = [-dy, dx];
+                    }
+                    x += dx;
+                    y += dy;
+                }
+                return { dx: x, dy: y };
+            }
 
             async function loadData() {
                 showNotification('正在從 Google 試算表載入資料...');
@@ -475,6 +488,8 @@
                     if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
                     const csvText = await response.text();
                     
+                    const coordCounts = new Map();
+
                     Papa.parse(csvText, {
                         header: true, skipEmptyLines: true,
                         complete: function(results) {
@@ -484,8 +499,19 @@
                                     const lon = parseFloat(data['經度']);
                                     const lat = parseFloat(data['緯度']);
                                     if (data['工廠名稱'] && !isNaN(lon) && !isNaN(lat)) {
+                                        
+                                        const coordKey = `${lon.toFixed(5)},${lat.toFixed(5)}`;
+                                        const count = coordCounts.get(coordKey) || 0;
+                                        
+                                        const { dx, dy } = getOffsetForIndex(count);
+                                        const baseOffset = 0.00015;
+                                        const finalLon = lon + dx * baseOffset;
+                                        const finalLat = lat + dy * baseOffset;
+
+                                        coordCounts.set(coordKey, count + 1);
+
                                         const feature = new ol.Feature({
-                                            geometry: new ol.geom.Point(ol.proj.fromLonLat([lon, lat])),
+                                            geometry: new ol.geom.Point(ol.proj.fromLonLat([finalLon, finalLat])),
                                             name: data['工廠名稱'], 
                                             category: data['分類'] || '其他', 
                                             address: data['地址'],
@@ -495,7 +521,7 @@
                                             fax: data['傳真'], 
                                             email: data['信箱'],
                                             website: data['網頁'], 
-                                            lon: lon, 
+                                            lon: lon, // Store original lon/lat for navigation
                                             lat: lat
                                         });
                                         feature.setId(index);
@@ -588,7 +614,7 @@
                 const keyword = $('#keyword-search').val().toLowerCase();
                 const isOpenOnly = $('#is-open-checkbox').is(':checked');
                 
-                const tolerance = 1; // Allow up to 1 character difference
+                const tolerance = 1;
 
                 const filteredFeatures = allFeatures.filter(feature => {
                     if (category && feature.get('category') !== category) return false;
@@ -718,7 +744,6 @@
             });
 
             map.on('dblclick', function(evt) {
-                // Double tap/click to add a new location
                 startAddLocationProcess(evt.coordinate);
             });
 
