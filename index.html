@@ -1006,14 +1006,13 @@
                 const clickedCategory = $clickedBtn.data('category');
                 
                 // Reset all buttons to their default, unselected state
-                $('.store-filter-btn').removeClass('active text-white text-red-600').addClass('text-black bg-white');
-                $('.store-filter-btn[data-category=""]').removeClass('bg-blue-600').addClass('bg-gray-200');
+                $('.store-filter-btn').removeClass('active text-white text-red-600 bg-blue-600').addClass('text-black bg-white');
 
                 // Apply active state to the clicked button
                 $clickedBtn.addClass('active');
                 if (clickedCategory === '') {
                     // Style for active "All" button
-                    $clickedBtn.removeClass('bg-gray-200 text-black').addClass('bg-blue-600 text-white');
+                    $clickedBtn.removeClass('bg-white text-black').addClass('bg-blue-600 text-white');
                 } else {
                     // Style for active category button
                     $clickedBtn.removeClass('text-black').addClass('text-red-600');
