@@ -26,8 +26,10 @@
     <style>
         /* 自定義樣式 */
         :root {
-            /* NEW: 手機版底部安全距離 (可調整此數值，例如 4.5rem, 72px) */
+            /* MODIFIED: 手機版底部安全距離 (可調整此數值) */
             --mobile-bottom-offset: 6rem; 
+            /* NEW: 手機版店家列表寬度 (可調整此數值) */
+            --mobile-panel-width: 90vw;
         }
         html, body {
             height: 100%;
@@ -148,8 +150,15 @@
         }
         /* 在小於 768px 的螢幕上（手機版）套用較高的底部距離 */
         @media (max-width: 767px) {
-            #store-list-panel, #legend {
+            #legend {
+                display: none; /* 在手機版上隱藏中間的分類圖例 */
+            }
+            #store-list-panel {
                 bottom: var(--mobile-bottom-offset);
+                width: var(--mobile-panel-width);
+                max-width: 400px; /* 避免在較寬的手機螢幕上過寬 */
+                left: 50%;
+                transform: translateX(-50%);
             }
         }
     </style>
@@ -220,7 +229,6 @@
 
 
             <!-- 圖例 -->
-            <!-- MODIFIED: Removed bottom-4 class, now controlled by CSS -->
             <div id="legend" class="absolute left-1/2 -translate-x-1/2 z-10 bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-md">
                 <div id="legend-content" class="flex items-center justify-center flex-wrap gap-x-4 gap-y-1 text-xs md:text-sm">
                     <!-- 圖例內容將由 JS 動態生成 -->
@@ -228,8 +236,7 @@
             </div>
             
             <!-- 店家列表面板 -->
-            <!-- MODIFIED: Removed responsive bottom classes, now controlled by CSS -->
-            <div id="store-list-panel" class="absolute left-4 z-10 bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-md w-64 flex flex-col transition-all duration-300 ease-in-out" style="max-height: 14rem;">
+            <div id="store-list-panel" class="absolute left-4 w-64 z-10 bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-md flex flex-col transition-all duration-300 ease-in-out" style="max-height: 14rem;">
                 <div class="flex justify-between items-start flex-shrink-0 mb-2">
                     <div id="store-list-filters" class="flex-grow flex overflow-x-auto pb-1 custom-scrollbar">
                         <!-- 分類按鈕將由 JS 動態生成 -->
