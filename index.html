@@ -26,9 +26,9 @@
     <style>
         /* 自定義樣式 */
         :root {
-            /* MODIFIED: 手機版底部安全距離 (可調整此數值) */
+            /* 手機版底部安全距離 (可調整此數值) */
             --mobile-bottom-offset: 6rem; 
-            /* NEW: 手機版店家列表寬度 (可調整此數值) */
+            /* 手機版店家列表寬度 (可調整此數值) */
             --mobile-panel-width: 90vw;
         }
         html, body {
@@ -144,7 +144,7 @@
         .new-location-marker:active {
             cursor: grabbing;
         }
-        /* NEW: Responsive positioning for bottom elements */
+        /* Responsive positioning for bottom elements */
         #store-list-panel, #legend {
             bottom: 1rem; /* 桌面版的預設值 (Tailwind class: bottom-4) */
         }
@@ -414,6 +414,19 @@
         const vectorSource = new ol.source.Vector();
         const clusterSource = new ol.source.Cluster({ distance: 50, minDistance: 25, source: vectorSource });
 
+        // NEW: Source and Layer for spider lines
+        const lineSource = new ol.source.Vector();
+        const lineLayer = new ol.layer.Vector({
+            source: lineSource,
+            style: new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: 'rgba(50, 50, 50, 0.7)',
+                    width: 1.5,
+                    lineDash: [4, 4]
+                })
+            })
+        });
+
         function clusterStyleFunction(feature) {
             const features = feature.get('features');
             const size = features.length;
@@ -469,7 +482,8 @@
 
         const map = new ol.Map({
             target: 'map', 
-            layers: [nlscLayer, clusterLayer],
+            // MODIFIED: Added lineLayer to the map
+            layers: [nlscLayer, lineLayer, clusterLayer],
             view: new ol.View({ center: ol.proj.fromLonLat([120.9, 23.9]), zoom: 8 }),
             controls: [
                 new ol.control.Zoom(),
@@ -507,7 +521,8 @@
             let userProfile = {};
             const sheetId = '1MfZimoJ04URFzX2Y3F5KsFBZe6ccrH0TuSSL6letLcM';
             const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
-            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxNg8_vdkukGE6Y55QHJmxpVqrpbbnpYyvkizbymaEKDB2MyeGvOKMb-jsczRqlIIHv/exec';
+            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzodb_IWhUwB8GeC_OdM2KJqXXnvHVvHh6CG6vtNQICp7dCd3htLemjTDRQ7CS3Ay5N/exec';
+            const visibilityThreshold = 16.5; // NEW: Define threshold globally
 
             function showNotification(message, type = 'info') {
                 const $notification = $('#notification');
@@ -547,6 +562,7 @@
                     Papa.parse(csvText, {
                         header: true, skipEmptyLines: true,
                         complete: function(results) {
+                            vectorSource.clear();
                             allFeatures = [];
                             results.data.forEach((data, index) => {
                                 if (data['審核'] && data['審核'].toUpperCase() === 'TRUE') {
@@ -575,7 +591,7 @@
                                             fax: data['傳真'], 
                                             email: data['信箱'],
                                             website: data['網頁'], 
-                                            lon: lon, // Store original lon/lat for navigation
+                                            lon: lon, 
                                             lat: lat
                                         });
                                         feature.setId(index);
@@ -583,10 +599,9 @@
                                     }
                                 }
                             });
-                            vectorSource.clear();
                             vectorSource.addFeatures(allFeatures);
                             populateFiltersAndLegend();
-                            updateStoreList(); // Initial population of the store list
+                            updateStoreList(); 
                             $('#notification').addClass('hidden');
                         },
                         error: (err) => {
@@ -805,6 +820,24 @@
                 startAddLocationProcess(evt.coordinate);
             });
 
+            // NEW: Function to animate spider lines
+            function animateSpiderLines(clusterFeatures) {
+                const originalLon = clusterFeatures[0].get('lon');
+                const originalLat = clusterFeatures[0].get('lat');
+                if (originalLon === undefined || originalLat === undefined) return;
+
+                const centerCoord = ol.proj.fromLonLat([originalLon, originalLat]);
+                
+                clusterFeatures.forEach((pointFeature, index) => {
+                    setTimeout(() => {
+                        const line = new ol.Feature({
+                            geometry: new ol.geom.LineString([centerCoord, pointFeature.getGeometry().getCoordinates()])
+                        });
+                        lineSource.addFeature(line);
+                    }, index * 100); // 每條線之間的延遲
+                });
+            }
+
             map.on('singleclick', function (evt) {
                 if (isAddModeActive) {
                     startAddLocationProcess(evt.coordinate);
@@ -819,10 +852,19 @@
                 if (feature) {
                     const features = feature.get('features');
                     if (features.length > 1) {
-                         map.getView().animate({
-                            zoom: map.getView().getZoom() + 1,
+                        // MODIFIED: Added animation callback to handle spider lines
+                        const newZoom = map.getView().getZoom() + 1;
+                        map.getView().animate({
+                            zoom: newZoom,
                             center: feature.getGeometry().getCoordinates(),
                             duration: 500
+                        }, (completed) => { // 動畫完成後的回呼
+                            if (completed) {
+                                lineSource.clear(); // 清除舊的線條
+                                if (newZoom > visibilityThreshold) {
+                                    animateSpiderLines(features);
+                                }
+                            }
                         });
                     } else {
                         const originalFeature = features[0];
@@ -1077,6 +1119,14 @@
                     $panel.css('max-height', '55px'); 
                 } else {
                     $panel.css('max-height', '14rem'); 
+                }
+            });
+
+            // MODIFIED: Listener to clear spider lines when zooming out
+            map.getView().on('change:resolution', () => {
+                const zoom = map.getView().getZoom();
+                if (zoom <= visibilityThreshold) {
+                    lineSource.clear();
                 }
             });
 
