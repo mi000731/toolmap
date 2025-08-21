@@ -572,9 +572,8 @@
                         $categorySelect.append(`<option value="${category}">${category}</option>`);
                         $addCategorySelect.append($('<option>', { value: category, text: category }));
                         const color = categoryColors[category];
-                        const textColor = category === '工具' ? 'text-black' : 'text-white';
                         $legendContent.append(`<div class="flex items-center"><span class="h-3 w-3 rounded-full mr-1.5 border border-gray-400" style="background-color: ${color}"></span>${category}</div>`);
-                        $storeListFilters.append(`<button data-category="${category}" data-textcolor="${textColor}" class="store-filter-btn text-nowrap px-3 py-1 text-sm rounded-full mr-2 flex-shrink-0 ${textColor}" style="background-color: ${color};">${category}</button>`);
+                        $storeListFilters.append(`<button data-category="${category}" class="store-filter-btn text-nowrap bg-white text-black px-3 py-1 text-sm rounded-full mr-2 flex-shrink-0 border-2" style="border-color: ${color};">${category}</button>`);
                      }
                 });
             }
@@ -1005,23 +1004,21 @@
             $('#store-list-filters').on('click', '.store-filter-btn', function() {
                 const $clickedBtn = $(this);
                 const clickedCategory = $clickedBtn.data('category');
-
-                $('.store-filter-btn').removeClass('active ring-2 ring-offset-1 ring-blue-500');
                 
+                // Reset all buttons to their default, unselected state
+                $('.store-filter-btn').removeClass('active text-white text-red-600').addClass('text-black bg-white');
+                $('.store-filter-btn[data-category=""]').removeClass('bg-blue-600').addClass('bg-gray-200');
+
+                // Apply active state to the clicked button
+                $clickedBtn.addClass('active');
                 if (clickedCategory === '') {
-                    $('.store-filter-btn[data-category=""]').addClass('active bg-blue-600 text-white').removeClass('bg-gray-200 text-gray-800');
-                    $('.store-filter-btn[data-category!=""]').each(function() {
-                        const textColor = $(this).data('textcolor');
-                        $(this).removeClass('text-white').addClass(textColor);
-                    });
+                    // Style for active "All" button
+                    $clickedBtn.removeClass('bg-gray-200 text-black').addClass('bg-blue-600 text-white');
                 } else {
-                    $('.store-filter-btn[data-category=""]').removeClass('active bg-blue-600 text-white').addClass('bg-gray-200 text-gray-800');
-                     $('.store-filter-btn[data-category!=""]').each(function() {
-                        const textColor = $(this).data('textcolor');
-                        $(this).removeClass('text-white').addClass(textColor);
-                    });
-                    $clickedBtn.removeClass($clickedBtn.data('textcolor')).addClass('active text-white');
+                    // Style for active category button
+                    $clickedBtn.removeClass('text-black').addClass('text-red-600');
                 }
+                
                 updateStoreList();
             });
 
