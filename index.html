@@ -106,6 +106,18 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
+        /* MODIFIED: Smaller scrollbar for the filter list, now thicker */
+        #store-list-filters::-webkit-scrollbar {
+            height: 8px; /* For horizontal scrollbar */
+        }
+        #store-list-filters::-webkit-scrollbar-thumb {
+            background: #bbb;
+            border-radius: 4px;
+        }
+        #store-list-filters::-webkit-scrollbar-track {
+            background: #eee;
+            border-radius: 4px;
+        }
         /* 當前位置標記動畫 */
         @keyframes pulse {
             0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
@@ -202,11 +214,21 @@
             </div>
             
             <!-- 店家列表面板 -->
-            <div id="store-list-panel" class="absolute bottom-4 left-4 z-10 bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-md w-64 flex flex-col" style="max-height: 28rem;">
-                <div id="store-list-filters" class="flex-shrink-0 flex overflow-x-auto pb-2 mb-2 custom-scrollbar">
-                    <!-- 分類按鈕將由 JS 動態生成 -->
+            <div id="store-list-panel" class="absolute bottom-4 left-4 z-10 bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-md w-64 flex flex-col transition-all duration-300 ease-in-out" style="max-height: 14rem;">
+                <div class="flex justify-between items-start flex-shrink-0 mb-2">
+                    <div id="store-list-filters" class="flex-grow flex overflow-x-auto pb-1 custom-scrollbar">
+                        <!-- 分類按鈕將由 JS 動態生成 -->
+                    </div>
+                    <button id="toggle-store-list-btn" class="flex-shrink-0 ml-2 p-1 -mr-1 rounded-full hover:bg-gray-200 focus:outline-none" title="收合/展開列表">
+                        <svg id="minimize-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                        <svg id="maximize-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                        </svg>
+                    </button>
                 </div>
-                <div id="store-list-content" class="flex-grow overflow-y-auto custom-scrollbar pr-2">
+                <div id="store-list-content" class="flex-grow overflow-y-auto custom-scrollbar pr-2 transition-all duration-300">
                     <!-- 店家列表將由 JS 動態生成 -->
                 </div>
             </div>
@@ -565,7 +587,7 @@
                 $categorySelect.html('<option value="">所有分類</option>');
                 $addCategorySelect.html('');
                 $legendContent.html('');
-                $storeListFilters.html('<button data-category="" class="store-filter-btn active bg-blue-600 text-white px-3 py-1 text-sm rounded-full mr-2 flex-shrink-0">全部</button>');
+                $storeListFilters.html('<button data-category="" class="store-filter-btn active bg-blue-600 text-white px-2 py-0.5 text-xs rounded-full mr-2 flex-shrink-0">全部</button>');
                 
                 allCategories.forEach(category => {
                      if (categoryColors[category]) {
@@ -573,7 +595,7 @@
                         $addCategorySelect.append($('<option>', { value: category, text: category }));
                         const color = categoryColors[category];
                         $legendContent.append(`<div class="flex items-center"><span class="h-3 w-3 rounded-full mr-1.5 border border-gray-400" style="background-color: ${color}"></span>${category}</div>`);
-                        $storeListFilters.append(`<button data-category="${category}" class="store-filter-btn text-nowrap bg-white text-black px-3 py-1 text-sm rounded-full mr-2 flex-shrink-0 border-2" style="border-color: ${color};">${category}</button>`);
+                        $storeListFilters.append(`<button data-category="${category}" class="store-filter-btn text-nowrap bg-white text-black px-2 py-0.5 text-xs rounded-full mr-2 flex-shrink-0 border" style="border-color: ${color};">${category}</button>`);
                      }
                 });
             }
@@ -1019,6 +1041,21 @@
                 }
                 
                 updateStoreList();
+            });
+            
+            $('#toggle-store-list-btn').on('click', function() {
+                const $panel = $('#store-list-panel');
+                const $content = $('#store-list-content');
+                
+                $content.toggleClass('hidden');
+                $('#minimize-icon').toggleClass('hidden');
+                $('#maximize-icon').toggleClass('hidden');
+                
+                if ($content.hasClass('hidden')) {
+                    $panel.css('max-height', '55px'); 
+                } else {
+                    $panel.css('max-height', '14rem'); 
+                }
             });
 
             loadData();
