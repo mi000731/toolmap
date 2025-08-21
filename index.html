@@ -23,6 +23,13 @@
     <!-- Google Identity Services Library -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
+    <!-- NEW: Fuse.js for fuzzy search -->
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
+    
+    <!-- MODIFIED: pinyin-pro for Chinese to Pinyin conversion -->
+    <script src="https://unpkg.com/pinyin-pro@3.18.2/dist/index.js"></script>
+
+
     <style>
         /* 自定義樣式 */
         :root {
@@ -414,7 +421,6 @@
         const vectorSource = new ol.source.Vector();
         const clusterSource = new ol.source.Cluster({ distance: 50, minDistance: 25, source: vectorSource });
 
-        // NEW: Source and Layer for spider lines
         const lineSource = new ol.source.Vector();
         const lineLayer = new ol.layer.Vector({
             source: lineSource,
@@ -482,7 +488,6 @@
 
         const map = new ol.Map({
             target: 'map', 
-            // MODIFIED: Added lineLayer to the map
             layers: [nlscLayer, lineLayer, clusterLayer],
             view: new ol.View({ center: ol.proj.fromLonLat([120.9, 23.9]), zoom: 8 }),
             controls: [
@@ -515,14 +520,17 @@
         const userLocationOverlay = new ol.Overlay({ element: userLocationElement, positioning: 'center-center', stopEvent: false });
         map.addOverlay(userLocationOverlay);
 
-        $(document).ready(function() {
+        // FIX: Use window.onload to ensure all scripts are loaded
+        window.onload = function() {
+            const { pinyin } = pinyinPro; 
             let allFeatures = [];
+            let fuse = null; 
             let isLoggedIn = false;
             let userProfile = {};
             const sheetId = '1MfZimoJ04URFzX2Y3F5KsFBZe6ccrH0TuSSL6letLcM';
             const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
-            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzodb_IWhUwB8GeC_OdM2KJqXXnvHVvHh6CG6vtNQICp7dCd3htLemjTDRQ7CS3Ay5N/exec';
-            const visibilityThreshold = 16.5; // NEW: Define threshold globally
+            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxNg8_vdkukGE6Y55QHJmxpVqrpbbnpYyvkizbymaEKDB2MyeGvOKMb-jsczRqlIIHv/exec';
+            const visibilityThreshold = 16.5; 
 
             function showNotification(message, type = 'info') {
                 const $notification = $('#notification');
@@ -564,6 +572,9 @@
                         complete: function(results) {
                             vectorSource.clear();
                             allFeatures = [];
+                            // MODIFIED: pinyinOptions to create continuous pinyin string
+                            const pinyinOptions = { pattern: 'pinyin', toneType: 'none', removeNonZh: true };
+
                             results.data.forEach((data, index) => {
                                 if (data['審核'] && data['審核'].toUpperCase() === 'TRUE') {
                                     const lon = parseFloat(data['經度']);
@@ -592,7 +603,10 @@
                                             email: data['信箱'],
                                             website: data['網頁'], 
                                             lon: lon, 
-                                            lat: lat
+                                            lat: lat,
+                                            name_pinyin: pinyin(data['工廠名稱'] || '', pinyinOptions),
+                                            address_pinyin: pinyin(data['地址'] || '', pinyinOptions),
+                                            product_pinyin: pinyin(data['公司產品'] || '', pinyinOptions)
                                         });
                                         feature.setId(index);
                                         allFeatures.push(feature);
@@ -600,6 +614,21 @@
                                 }
                             });
                             vectorSource.addFeatures(allFeatures);
+                            
+                            // MODIFIED: Stricter Fuse.js options, searching only on pinyin
+                            const fuseOptions = {
+                                includeScore: true,
+                                threshold: 0.1, // Very strict threshold
+                                minMatchCharLength: 2,
+                                ignoreLocation: true, // Search anywhere in the string
+                                keys: [
+                                    'values_.name_pinyin',
+                                    'values_.address_pinyin',
+                                    'values_.product_pinyin'
+                                ]
+                            };
+                            fuse = new Fuse(allFeatures, fuseOptions);
+
                             populateFiltersAndLegend();
                             updateStoreList(); 
                             $('#notification').addClass('hidden');
@@ -663,54 +692,43 @@
                 return false;
             }
             
-            function levenshteinDistance(a, b) {
-                if (a.length === 0) return b.length;
-                if (b.length === 0) return a.length;
-                const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
-                for (let i = 0; i <= a.length; i++) { matrix[0][i] = i; }
-                for (let j = 0; j <= b.length; j++) { matrix[j][0] = j; }
-                for (let j = 1; j <= b.length; j++) {
-                    for (let i = 1; i <= a.length; i++) {
-                        const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
-                        matrix[j][i] = Math.min(
-                            matrix[j][i - 1] + 1,
-                            matrix[j - 1][i] + 1,
-                            matrix[j - 1][i - 1] + indicator,
-                        );
-                    }
-                }
-                return matrix[b.length][a.length];
-            }
-
+            // MODIFIED: Added console logs for debugging search steps
             function applyFilters() {
+                console.log("--- 開始搜尋 ---");
                 const category = $('#category-select').val();
-                const keyword = $('#keyword-search').val().toLowerCase();
+                const keyword = $('#keyword-search').val();
                 const isOpenOnly = $('#is-open-checkbox').is(':checked');
-                
-                const tolerance = 1;
 
-                const filteredFeatures = allFeatures.filter(feature => {
-                    if (category && feature.get('category') !== category) return false;
-                    if (isOpenOnly && !isCurrentlyOpen(feature.get('hours'))) return false;
+                let results = allFeatures;
 
-                    if (keyword) {
-                        const name = feature.get('name').toLowerCase();
-                        const address = feature.get('address').toLowerCase();
-                        const product = (feature.get('product') || '').toLowerCase();
+                // 1. Keyword search with Fuse.js
+                if (keyword && fuse) {
+                    console.log(`1. 原始關鍵字: "${keyword}"`);
+                    // MODIFIED: pinyinOptions to create continuous pinyin string
+                    const pinyinKeyword = pinyin(keyword, { pattern: 'pinyin', toneType: 'none', removeNonZh: true });
+                    console.log(`2. 轉換後拼音: "${pinyinKeyword}"`);
+                    const fuseResult = fuse.search(pinyinKeyword);
+                    results = fuseResult.map(result => result.item);
+                    console.log(`3. Fuse.js 模糊搜尋找到 ${results.length} 筆結果`);
+                }
 
-                        const nameMatch = name.includes(keyword) || levenshteinDistance(name, keyword) <= tolerance;
-                        const addressMatch = address.includes(keyword) || levenshteinDistance(address, keyword) <= tolerance;
-                        const productMatch = product.includes(keyword) || levenshteinDistance(product, keyword) <= tolerance;
-
-                        if (!nameMatch && !addressMatch && !productMatch) {
-                            return false;
-                        }
+                // 2. Filter by category and open status
+                const finalFeatures = results.filter(feature => {
+                    if (category && feature.get('category') !== category) {
+                        return false;
+                    }
+                    if (isOpenOnly && !isCurrentlyOpen(feature.get('hours'))) {
+                        return false;
                     }
                     return true;
                 });
                 
+                console.log(`4. 經過其他篩選後，最終顯示 ${finalFeatures.length} 筆結果`);
+                console.log("--- 搜尋結束 ---");
+                
                 vectorSource.clear();
-                vectorSource.addFeatures(filteredFeatures);
+                vectorSource.addFeatures(finalFeatures);
+                updateStoreList(); // NEW: Call this function to refresh the list
                 $('#filter-modal').addClass('hidden');
             }
             
@@ -722,6 +740,7 @@
                 $('#is-open-checkbox').prop('checked', false);
                 vectorSource.clear();
                 vectorSource.addFeatures(allFeatures);
+                updateStoreList(); // Also update list on reset
             });
             $('#close-product-modal').on('click', () => $('#product-modal').addClass('hidden'));
             $('#center-on-me-btn').on('click', () => {
@@ -810,7 +829,7 @@
                     showNotification('進入新增模式：請點擊地圖上您想新增的位置。');
                     map.getTargetElement().style.cursor = 'crosshair';
                 } else {
-                    $(this).removeClass('bg-blue-600 text-white').addClass('bg-white text-gray-700');
+                    $(this).removeClass('bg-white text-gray-700').addClass('bg-white text-gray-700');
                     showNotification('已取消新增模式。', 'info');
                     map.getTargetElement().style.cursor = '';
                 }
@@ -820,7 +839,6 @@
                 startAddLocationProcess(evt.coordinate);
             });
 
-            // NEW: Function to animate spider lines
             function animateSpiderLines(clusterFeatures) {
                 const originalLon = clusterFeatures[0].get('lon');
                 const originalLat = clusterFeatures[0].get('lat');
@@ -834,7 +852,7 @@
                             geometry: new ol.geom.LineString([centerCoord, pointFeature.getGeometry().getCoordinates()])
                         });
                         lineSource.addFeature(line);
-                    }, index * 100); // 每條線之間的延遲
+                    }, index * 100); 
                 });
             }
 
@@ -852,17 +870,21 @@
                 if (feature) {
                     const features = feature.get('features');
                     if (features.length > 1) {
-                        // MODIFIED: Added animation callback to handle spider lines
-                        const newZoom = map.getView().getZoom() + 1;
-                        map.getView().animate({
-                            zoom: newZoom,
-                            center: feature.getGeometry().getCoordinates(),
-                            duration: 500
-                        }, (completed) => { // 動畫完成後的回呼
-                            if (completed) {
-                                lineSource.clear(); // 清除舊的線條
-                                if (newZoom > visibilityThreshold) {
-                                    animateSpiderLines(features);
+                        const extent = ol.extent.createEmpty();
+                        features.forEach(function(feature) {
+                            ol.extent.extend(extent, feature.getGeometry().getExtent());
+                        });
+
+                        map.getView().fit(extent, {
+                            duration: 500,
+                            padding: [50, 50, 50, 50],
+                            callback: (completed) => {
+                                if (completed) {
+                                    const newZoom = map.getView().getZoom();
+                                    lineSource.clear(); 
+                                    if (newZoom > visibilityThreshold) {
+                                        animateSpiderLines(features);
+                                    }
                                 }
                             }
                         });
@@ -1122,7 +1144,6 @@
                 }
             });
 
-            // MODIFIED: Listener to clear spider lines when zooming out
             map.getView().on('change:resolution', () => {
                 const zoom = map.getView().getZoom();
                 if (zoom <= visibilityThreshold) {
@@ -1132,7 +1153,7 @@
 
             loadData();
             initializeUserLocation();
-        });
+        };
     </script>
 </body>
 </html>
