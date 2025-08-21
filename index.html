@@ -565,15 +565,16 @@
                 $categorySelect.html('<option value="">所有分類</option>');
                 $addCategorySelect.html('');
                 $legendContent.html('');
-                $storeListFilters.html('<button data-category="" class="store-filter-btn active text-nowrap bg-blue-600 text-white px-3 py-1 text-sm rounded-full mr-2">全部</button>');
+                $storeListFilters.html('<button data-category="" class="store-filter-btn active bg-blue-600 text-white px-3 py-1 text-sm rounded-full mr-2 flex-shrink-0">全部</button>');
                 
                 allCategories.forEach(category => {
                      if (categoryColors[category]) {
                         $categorySelect.append(`<option value="${category}">${category}</option>`);
                         $addCategorySelect.append($('<option>', { value: category, text: category }));
                         const color = categoryColors[category];
+                        const textColor = category === '工具' ? 'text-black' : 'text-white';
                         $legendContent.append(`<div class="flex items-center"><span class="h-3 w-3 rounded-full mr-1.5 border border-gray-400" style="background-color: ${color}"></span>${category}</div>`);
-                        $storeListFilters.append(`<button data-category="${category}" class="store-filter-btn text-nowrap bg-white text-gray-700 px-3 py-1 text-sm rounded-full mr-2">${category}</button>`);
+                        $storeListFilters.append(`<button data-category="${category}" data-textcolor="${textColor}" class="store-filter-btn text-nowrap px-3 py-1 text-sm rounded-full mr-2 flex-shrink-0 ${textColor}" style="background-color: ${color};">${category}</button>`);
                      }
                 });
             }
@@ -965,14 +966,18 @@
                         const category = feature.get('category');
                         if (!activeCategory || category === activeCategory) {
                              const name = feature.get('name');
-                             const listItem = $(`<div class="text-sm py-1.5 px-2 cursor-pointer hover:bg-gray-200 rounded-md">${name}</div>`);
+                             const color = categoryColors[category] || categoryColors['其他'];
+                             const listItem = $(`
+                                <div class="flex items-center text-sm py-1.5 px-2 cursor-pointer hover:bg-gray-200 rounded-md">
+                                    <span class="h-2.5 w-2.5 rounded-full mr-2 flex-shrink-0" style="background-color: ${color}"></span>
+                                    <span class="truncate">${name}</span>
+                                </div>
+                             `);
                              listItem.on('click', () => {
                                  const coordinates = feature.getGeometry().getCoordinates();
                                  map.getView().animate({ center: coordinates, zoom: 18, duration: 800 });
-                                 // We need a slight delay for the popup to appear correctly after zoom
                                  setTimeout(() => {
                                      infoOverlay.setPosition(coordinates);
-                                     // Manually trigger the popup content generation
                                      const data = feature.getProperties();
                                      const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lon}`;
                                      let productText = data.product || '';
@@ -998,8 +1003,25 @@
             map.on('moveend', updateStoreList);
 
             $('#store-list-filters').on('click', '.store-filter-btn', function() {
-                $('.store-filter-btn').removeClass('active bg-blue-600 text-white').addClass('bg-white text-gray-700');
-                $(this).addClass('active bg-blue-600 text-white').removeClass('bg-white text-gray-700');
+                const $clickedBtn = $(this);
+                const clickedCategory = $clickedBtn.data('category');
+
+                $('.store-filter-btn').removeClass('active ring-2 ring-offset-1 ring-blue-500');
+                
+                if (clickedCategory === '') {
+                    $('.store-filter-btn[data-category=""]').addClass('active bg-blue-600 text-white').removeClass('bg-gray-200 text-gray-800');
+                    $('.store-filter-btn[data-category!=""]').each(function() {
+                        const textColor = $(this).data('textcolor');
+                        $(this).removeClass('text-white').addClass(textColor);
+                    });
+                } else {
+                    $('.store-filter-btn[data-category=""]').removeClass('active bg-blue-600 text-white').addClass('bg-gray-200 text-gray-800');
+                     $('.store-filter-btn[data-category!=""]').each(function() {
+                        const textColor = $(this).data('textcolor');
+                        $(this).removeClass('text-white').addClass(textColor);
+                    });
+                    $clickedBtn.removeClass($clickedBtn.data('textcolor')).addClass('active text-white');
+                }
                 updateStoreList();
             });
 
