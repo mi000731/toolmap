@@ -544,6 +544,7 @@
             let userProfile = {};
             const sheetId = '1MfZimoJ04URFzX2Y3F5KsFBZe6ccrH0TuSSL6letLcM';
             const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
+            // MODIFIED: Updated Apps Script URL
             const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpqp04dw4JuQHi85oIUGU9Mo6XpsfMWH9YIobw39qtUZ5cBKTg2jdPLcu955pU9cmDhg/exec';
             const visibilityThreshold = 16.5; 
 
@@ -619,6 +620,7 @@
                                             lon: lon, 
                                             lat: lat,
                                             submissionId: data['Timestamp'], 
+                                            // MODIFIED: Changed to 'submitterEmail' to match your sheet column
                                             submitterEmail: data['submitterEmail'],
                                             approved: data['審核'] ? data['審核'].toUpperCase() === 'TRUE' : false,
                                             name_pinyin: pinyin(data['工廠名稱'] || '', pinyinOptions),
@@ -1212,12 +1214,25 @@
             $('#close-management-modal').on('click', () => $('#management-modal').addClass('hidden'));
             
             $('#management-list-content').on('click', '.edit-store-btn', function() {
+                console.log("--- 編輯按鈕點擊 ---");
                 const submissionId = $(this).data('id');
-                const featureToEdit = allFeatures.find(f => f.get('submissionId') === submissionId);
+                console.log("1. 點擊的店家 ID (from data-id):", submissionId);
+                
+                if (!submissionId) {
+                    console.error("錯誤：找不到店家 ID。");
+                    return;
+                }
+
+                const featureToEdit = allFeatures.find(f => String(f.get('submissionId')) === String(submissionId));
+                
+                console.log("2. 在 allFeatures 中尋找對應的店家資料...");
+                
                 if (featureToEdit) {
+                    console.log("3. 成功找到店家資料:", featureToEdit.getProperties());
                     const data = featureToEdit.getProperties();
                     
                     // Populate form
+                    console.log("4. 開始填入表單...");
                     $('#edit-submission-id').val(data.submissionId);
                     $('#add-name').val(data.name);
                     $('#add-category').val(data.category);
@@ -1246,6 +1261,7 @@
                     } else {
                          createTimeSlot();
                     }
+                    console.log("5. 營業時間已填入");
                     
                     // Setup temporary marker for editing
                     if (tempMarker) map.removeOverlay(tempMarker);
@@ -1256,12 +1272,21 @@
                         element: markerEl, position: coordinate, positioning: 'bottom-center', stopEvent: false,
                     });
                     map.addOverlay(tempMarker);
+                    console.log("6. 在地圖上放置編輯圖釘");
 
                     // Show modal
                     $('#management-modal').addClass('hidden');
                     $('#modal-title').text('編輯店家');
                     $('#add-location-modal').removeClass('hidden');
                     map.getView().animate({ center: coordinate, zoom: 17 });
+                    console.log("7. 顯示編輯視窗並移動地圖");
+                    console.log("--- 編輯流程結束 ---");
+
+                } else {
+                    console.error("3. 錯誤：在 allFeatures 中找不到 ID 為 " + submissionId + " 的店家。");
+                    // For deeper debugging, let's see what IDs are available
+                    const availableIds = allFeatures.map(f => f.get('submissionId'));
+                    console.log("目前 allFeatures 中所有店家的 ID:", availableIds);
                 }
             });
 
