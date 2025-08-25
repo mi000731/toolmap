@@ -619,7 +619,7 @@
                                             lon: lon, 
                                             lat: lat,
                                             submissionId: data['Timestamp'], 
-                                            submitterEmail: data['Submitter Email'],
+                                            submitterEmail: data['submitterEmail'],
                                             approved: data['審核'] ? data['審核'].toUpperCase() === 'TRUE' : false,
                                             name_pinyin: pinyin(data['工廠名稱'] || '', pinyinOptions),
                                             address_pinyin: pinyin(data['地址'] || '', pinyinOptions),
