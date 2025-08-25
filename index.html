@@ -620,7 +620,6 @@
                                             lon: lon, 
                                             lat: lat,
                                             submissionId: data['Timestamp'], 
-                                            // MODIFIED: Changed to 'submitterEmail' to match your sheet column
                                             submitterEmail: data['submitterEmail'],
                                             approved: data['審核'] ? data['審核'].toUpperCase() === 'TRUE' : false,
                                             name_pinyin: pinyin(data['工廠名稱'] || '', pinyinOptions),
