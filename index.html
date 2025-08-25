@@ -1229,24 +1229,24 @@
                 
                 if (featureToEdit) {
                     console.log("3. 成功找到店家資料:", featureToEdit.getProperties());
-                    const data = featureToEdit.getProperties();
                     
-                    // Populate form
                     console.log("4. 開始填入表單...");
-                    $('#edit-submission-id').val(data.submissionId);
-                    $('#add-name').val(data.name);
-                    $('#add-category').val(data.category);
-                    $('#add-address').val(data.address);
-                    $('#add-contact').val(data.contact);
-                    $('#add-product').val(data.product);
-                    $('#add-email').val(data.email);
-                    $('#add-website').val(data.website);
-                    $('#add-fax').val(data.fax);
+                    // MODIFIED: Use .get() for robust data retrieval
+                    $('#edit-submission-id').val(featureToEdit.get('submissionId'));
+                    $('#add-name').val(featureToEdit.get('name'));
+                    $('#add-category').val(featureToEdit.get('category'));
+                    $('#add-address').val(featureToEdit.get('address'));
+                    $('#add-contact').val(featureToEdit.get('contact'));
+                    $('#add-product').val(featureToEdit.get('product'));
+                    $('#add-email').val(featureToEdit.get('email'));
+                    $('#add-website').val(featureToEdit.get('website'));
+                    $('#add-fax').val(featureToEdit.get('fax'));
 
                     // Populate hours
                     $('#hours-container').empty();
-                    if (data.hours) {
-                        const hoursParts = data.hours.split(';');
+                    const hours = featureToEdit.get('hours');
+                    if (hours) {
+                        const hoursParts = hours.split(';');
                         hoursParts.forEach(part => {
                             createTimeSlot();
                             const row = $('.time-slot-row:last');
@@ -1265,7 +1265,7 @@
                     
                     // Setup temporary marker for editing
                     if (tempMarker) map.removeOverlay(tempMarker);
-                    const coordinate = ol.proj.fromLonLat([data.lon, data.lat]);
+                    const coordinate = ol.proj.fromLonLat([featureToEdit.get('lon'), featureToEdit.get('lat')]);
                     const markerEl = document.createElement('div');
                     markerEl.className = 'new-location-marker';
                     tempMarker = new ol.Overlay({
