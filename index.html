@@ -544,7 +544,7 @@
             let userProfile = {};
             const sheetId = '1MfZimoJ04URFzX2Y3F5KsFBZe6ccrH0TuSSL6letLcM';
             const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
-            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpqp04dw4JuQHi85oIUGU9Mo6XpsfMWH9YIobw39qtUZ5cBKTg2jdPLcu955pU9cmDhg/exec';
+            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxNg8_vdkukGE6Y55QHJmxpVqrpbbnpYyvkizbymaEKDB2MyeGvOKMb-jsczRqlIIHv/exec';
             const visibilityThreshold = 16.5; 
 
             function showNotification(message, type = 'info') {
@@ -716,7 +716,7 @@
                 const keyword = $('#keyword-search').val();
                 const isOpenOnly = $('#is-open-checkbox').is(':checked');
 
-                let results = allFeatures.filter(f => f.get('approved'));
+                let results = allFeatures;
 
                 if (keyword && fuse) {
                     console.log(`1. 原始關鍵字: "${keyword}"`);
@@ -728,6 +728,10 @@
                 }
 
                 const finalFeatures = results.filter(feature => {
+                    // MODIFIED: Only show approved features in general search
+                    if (!feature.get('approved')) {
+                        return false;
+                    }
                     if (category && feature.get('category') !== category) {
                         return false;
                     }
