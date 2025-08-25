@@ -728,7 +728,6 @@
                 }
 
                 const finalFeatures = results.filter(feature => {
-                    // MODIFIED: Only show approved features in general search
                     if (!feature.get('approved')) {
                         return false;
                     }
@@ -1173,9 +1172,15 @@
                 }
             });
             
-            // NEW: Management Modal Logic
+            // NEW: Management Modal Logic with debugging
             $('#manage-btn').on('click', function() {
+                console.log("--- 管理按鈕點擊 ---");
+                console.log("1. 目前登入使用者 Email:", userProfile.email);
+                console.log("2. 已載入的店家總數:", allFeatures.length);
+
                 const userStores = allFeatures.filter(f => f.get('submitterEmail') === userProfile.email);
+                console.log(`3. 篩選出 ${userStores.length} 筆符合此 Email 的店家`);
+
                 const $content = $('#management-list-content');
                 $content.html('');
 
@@ -1200,6 +1205,7 @@
                         $content.append(itemHtml);
                     });
                 }
+                console.log("4. 產生管理列表 HTML 並顯示 Modal");
                 $('#management-modal').removeClass('hidden');
             });
 
