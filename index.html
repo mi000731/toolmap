@@ -210,10 +210,11 @@
                          data-shape="rectangular"
                          data-logo_alignment="left">
                     </div>
+                     <!-- MODIFIED: "已登入" changed to a "管理" button -->
                      <div id="add-info" class="bg-white text-gray-700 py-2 px-4 rounded-lg shadow-lg items-center space-x-2 hidden">
                         <span id="user-name" class="font-bold"></span>
-                        <span>已登入</span>
-                        <a href="#" id="sign-out-btn" class="text-xs text-blue-500 hover:underline ml-2">登出</a>
+                        <button id="manage-btn" class="text-sm text-blue-600 hover:underline">管理</button>
+                        <a href="#" id="sign-out-btn" class="text-xs text-gray-500 hover:underline ml-2">登出</a>
                     </div>
                 </div>
                 <button id="open-filter-modal" class="bg-blue-600 text-white p-3 rounded-lg shadow-lg hover:bg-blue-700 transition-colors duration-300 flex items-center justify-center" title="篩選">
@@ -267,7 +268,7 @@
         <div id="add-location-modal" class="hidden absolute top-4 left-4 z-40 bg-white shadow-2xl w-full max-w-md rounded-lg flex flex-col" style="max-height: calc(100vh - 2rem);">
             <form id="add-location-form" class="flex-grow flex flex-col overflow-hidden">
                 <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
-                    <h2 class="text-xl font-bold text-gray-800">新增店家</h2>
+                    <h2 id="modal-title" class="text-xl font-bold text-gray-800">新增店家</h2>
                     <div class="flex items-center space-x-2">
                          <button id="submit-location-btn" type="submit" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center w-28">
                             <span class="submit-text">送出審核</span>
@@ -277,6 +278,8 @@
                     </div>
                 </div>
                 <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
+                    <!-- NEW: Hidden input for storing submission ID for edits -->
+                    <input type="hidden" id="edit-submission-id" name="submissionId">
                     <p class="text-sm text-gray-600">請填寫店家資訊，或在地圖上拖曳圖釘以調整位置。</p>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">店名 <span class="text-red-500">*</span></label>
@@ -371,6 +374,19 @@
                 <button id="close-product-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
             </div>
             <div id="product-modal-content" class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar whitespace-pre-wrap"></div>
+        </div>
+    </div>
+    
+    <!-- NEW: Management Modal -->
+    <div id="management-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-800">我的店家管理</h2>
+                <button id="close-management-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+            </div>
+            <div id="management-list-content" class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <!-- User's stores will be listed here -->
+            </div>
         </div>
     </div>
 
@@ -520,7 +536,6 @@
         const userLocationOverlay = new ol.Overlay({ element: userLocationElement, positioning: 'center-center', stopEvent: false });
         map.addOverlay(userLocationOverlay);
 
-        // FIX: Use window.onload to ensure all scripts are loaded
         window.onload = function() {
             const { pinyin } = pinyinPro; 
             let allFeatures = [];
@@ -529,7 +544,7 @@
             let userProfile = {};
             const sheetId = '1MfZimoJ04URFzX2Y3F5KsFBZe6ccrH0TuSSL6letLcM';
             const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
-            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxNg8_vdkukGE6Y55QHJmxpVqrpbbnpYyvkizbymaEKDB2MyeGvOKMb-jsczRqlIIHv/exec';
+            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpqp04dw4JuQHi85oIUGU9Mo6XpsfMWH9YIobw39qtUZ5cBKTg2jdPLcu955pU9cmDhg/exec';
             const visibilityThreshold = 16.5; 
 
             function showNotification(message, type = 'info') {
@@ -572,14 +587,14 @@
                         complete: function(results) {
                             vectorSource.clear();
                             allFeatures = [];
-                            // MODIFIED: pinyinOptions to create continuous pinyin string
                             const pinyinOptions = { pattern: 'pinyin', toneType: 'none', removeNonZh: true };
 
                             results.data.forEach((data, index) => {
-                                if (data['審核'] && data['審核'].toUpperCase() === 'TRUE') {
+                                // NEW: Assume 'Timestamp' and 'Submitter Email' columns exist in the CSV
+                                if (data['審核'] && data['審核'].toUpperCase() === 'TRUE' && data['工廠名稱']) {
                                     const lon = parseFloat(data['經度']);
                                     const lat = parseFloat(data['緯度']);
-                                    if (data['工廠名稱'] && !isNaN(lon) && !isNaN(lat)) {
+                                    if (!isNaN(lon) && !isNaN(lat)) {
                                         
                                         const coordKey = `${lon.toFixed(5)},${lat.toFixed(5)}`;
                                         const count = coordCounts.get(coordKey) || 0;
@@ -604,23 +619,24 @@
                                             website: data['網頁'], 
                                             lon: lon, 
                                             lat: lat,
+                                            submissionId: data['Timestamp'], // Use Timestamp as a unique ID
+                                            submitterEmail: data['Submitter Email'], // Read submitter email
                                             name_pinyin: pinyin(data['工廠名稱'] || '', pinyinOptions),
                                             address_pinyin: pinyin(data['地址'] || '', pinyinOptions),
                                             product_pinyin: pinyin(data['公司產品'] || '', pinyinOptions)
                                         });
-                                        feature.setId(index);
+                                        feature.setId(data['Timestamp'] || index); // Use a unique ID
                                         allFeatures.push(feature);
                                     }
                                 }
                             });
                             vectorSource.addFeatures(allFeatures);
                             
-                            // MODIFIED: Stricter Fuse.js options, searching only on pinyin
                             const fuseOptions = {
                                 includeScore: true,
-                                threshold: 0.1, // Very strict threshold
+                                threshold: 0.1, 
                                 minMatchCharLength: 2,
-                                ignoreLocation: true, // Search anywhere in the string
+                                ignoreLocation: true,
                                 keys: [
                                     'values_.name_pinyin',
                                     'values_.address_pinyin',
@@ -692,7 +708,6 @@
                 return false;
             }
             
-            // MODIFIED: Added console logs for debugging search steps
             function applyFilters() {
                 console.log("--- 開始搜尋 ---");
                 const category = $('#category-select').val();
@@ -701,10 +716,8 @@
 
                 let results = allFeatures;
 
-                // 1. Keyword search with Fuse.js
                 if (keyword && fuse) {
                     console.log(`1. 原始關鍵字: "${keyword}"`);
-                    // MODIFIED: pinyinOptions to create continuous pinyin string
                     const pinyinKeyword = pinyin(keyword, { pattern: 'pinyin', toneType: 'none', removeNonZh: true });
                     console.log(`2. 轉換後拼音: "${pinyinKeyword}"`);
                     const fuseResult = fuse.search(pinyinKeyword);
@@ -712,7 +725,6 @@
                     console.log(`3. Fuse.js 模糊搜尋找到 ${results.length} 筆結果`);
                 }
 
-                // 2. Filter by category and open status
                 const finalFeatures = results.filter(feature => {
                     if (category && feature.get('category') !== category) {
                         return false;
@@ -728,7 +740,7 @@
                 
                 vectorSource.clear();
                 vectorSource.addFeatures(finalFeatures);
-                updateStoreList(); // NEW: Call this function to refresh the list
+                updateStoreList(); 
                 $('#filter-modal').addClass('hidden');
             }
             
@@ -740,7 +752,7 @@
                 $('#is-open-checkbox').prop('checked', false);
                 vectorSource.clear();
                 vectorSource.addFeatures(allFeatures);
-                updateStoreList(); // Also update list on reset
+                updateStoreList(); 
             });
             $('#close-product-modal').on('click', () => $('#product-modal').addClass('hidden'));
             $('#center-on-me-btn').on('click', () => {
@@ -785,6 +797,7 @@
                 $('#hours-container').empty();
                 createTimeSlot();
                 reverseGeocode(lonLat[0], lonLat[1]);
+                $('#modal-title').text('新增店家');
                 $('#add-location-modal').removeClass('hidden');
                 
                 map.getView().animate({
@@ -829,7 +842,7 @@
                     showNotification('進入新增模式：請點擊地圖上您想新增的位置。');
                     map.getTargetElement().style.cursor = 'crosshair';
                 } else {
-                    $(this).removeClass('bg-white text-gray-700').addClass('bg-white text-gray-700');
+                    $(this).removeClass('bg-blue-600 text-white').addClass('bg-white text-gray-700');
                     showNotification('已取消新增模式。', 'info');
                     map.getTargetElement().style.cursor = '';
                 }
@@ -1008,8 +1021,14 @@
                 }
                 const lonLat = ol.proj.toLonLat(tempMarker.getPosition());
                 const formData = new FormData(this);
+                const submissionId = $('#edit-submission-id').val();
+                
                 const newData = {
-                    timestamp: new Date().toISOString(), submitterName: userProfile.name || 'N/A', submitterEmail: userProfile.email || 'N/A',
+                    timestamp: submissionId || new Date().toISOString(), // Use existing timestamp for edits
+                    submissionId: submissionId || new Date().toISOString(),
+                    action: submissionId ? 'update' : 'create',
+                    submitterName: userProfile.name || 'N/A', 
+                    submitterEmail: userProfile.email || 'N/A',
                     name: formData.get('name'), category: formData.get('category'), address: formData.get('address'),
                     contact: formData.get('contact'), product: formData.get('product'), fax: formData.get('fax'),
                     email: formData.get('email'), website: formData.get('website'), hours: hoursStrings.join('; '),
@@ -1049,7 +1068,6 @@
                 $('.g_id_signin').hide();
                 $('#add-info').removeClass('hidden').addClass('flex');
                 $('#user-name').text(userProfile.name);
-                showNotification(`歡迎，${userProfile.name}！您現在可以新增店家。`, 'success');
             });
             $('#sign-out-btn').on('click', (e) => {
                 e.preventDefault();
