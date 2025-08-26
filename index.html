@@ -197,10 +197,12 @@
             <div class="absolute top-4 right-4 z-10 flex flex-col items-end space-y-2">
                 <!-- 登入/新增說明按鈕 -->
                 <div id="login-status">
+                    <!-- MODIFIED: Enabled auto_select and disabled FedCM -->
                     <div id="g_id_onload"
                          data-client_id="35839698842-b73h9naufqdm7d0j378882k1e6aq6064.apps.googleusercontent.com"
                          data-callback="handleCredentialResponse"
-                         data-auto_prompt="false">
+                         data-auto_select="true"
+                         data-use_fedcm_for_prompt="false">
                     </div>
                     <div class="g_id_signin" 
                          data-type="standard"
@@ -210,7 +212,6 @@
                          data-shape="rectangular"
                          data-logo_alignment="left">
                     </div>
-                     <!-- MODIFIED: "已登入" changed to a "管理" button -->
                      <div id="add-info" class="bg-white text-gray-700 py-2 px-4 rounded-lg shadow-lg items-center space-x-2 hidden">
                         <span id="user-name" class="font-bold"></span>
                         <button id="manage-btn" class="text-sm text-blue-600 hover:underline">管理</button>
@@ -850,7 +851,7 @@
                     showNotification('進入新增模式：請點擊地圖上您想新增的位置。');
                     map.getTargetElement().style.cursor = 'crosshair';
                 } else {
-                    $(this).removeClass('bg-blue-600 text-white').addClass('bg-white text-gray-700');
+                    $(this).removeClass('bg-white text-gray-700').addClass('bg-white text-gray-700');
                     showNotification('已取消新增模式。', 'info');
                     map.getTargetElement().style.cursor = '';
                 }
