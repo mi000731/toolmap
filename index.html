@@ -395,7 +395,7 @@
 
     <!-- NEW: Review Modal -->
     <div id="review-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl flex flex-col" style="height: 90vh;">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl flex flex-col" style="height: 90vh;">
             <div class="p-4 border-b flex justify-between items-center">
                 <h2 class="text-xl font-bold text-gray-800">審核店家</h2>
                 <button id="close-review-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
@@ -408,7 +408,7 @@
             </div>
             <div class="flex-grow overflow-y-hidden flex">
                 <!-- List Panel -->
-                <div id="review-list-panel" class="w-1/3 border-r overflow-y-auto custom-scrollbar">
+                <div id="review-list-panel" class="w-1/3 border-r overflow-y-auto custom-scrollbar bg-gray-50">
                     <!-- List items will be injected here -->
                 </div>
                 <!-- Detail Panel -->
@@ -652,6 +652,7 @@
                                             lat: lat,
                                             submissionId: data['Timestamp'], 
                                             submitterEmail: data['submitterEmail'],
+                                            submitterName: data['submitterName'],
                                             approved: data['審核'] ? data['審核'].toUpperCase() === 'TRUE' : false,
                                             name_pinyin: pinyin(data['工廠名稱'] || '', pinyinOptions),
                                             address_pinyin: pinyin(data['地址'] || '', pinyinOptions),
@@ -1064,8 +1065,11 @@
                 const submissionId = $('#edit-submission-id').val();
                 const originalName = $('#edit-original-name').val();
                 
-                // MODIFIED: Use originalName to determine action
-                const action = originalName ? 'update' : 'create';
+                let action = 'create';
+                if (originalName) {
+                    // Differentiate between a regular user updating and an admin updating
+                    action = isAdmin ? 'admin_update' : 'update';
+                }
 
                 const newData = {
                     timestamp: submissionId || new Date().toISOString(), 
@@ -1084,7 +1088,7 @@
 
                 fetch(APPS_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(newData) })
                 .then(() => {
-                    showNotification("資料已成功送出審核！感謝您的貢獻。", 'success');
+                    showNotification("資料已成功送出！感謝您的貢獻。", 'success');
                     $('#add-location-modal').addClass('hidden');
                     if(tempMarker) map.removeOverlay(tempMarker);
                     tempMarker = null;
@@ -1377,6 +1381,206 @@
                     console.error("3. 錯誤：在 allFeatures 中找不到符合條件的店家。");
                 }
             });
+
+            // --- NEW: Review Modal Logic ---
+
+            // Open the review modal
+            $('#review-btn').on('click', function() {
+                $('#review-modal').removeClass('hidden');
+                loadReviewData('pending'); // Load pending items by default
+                // Reset tabs to default
+                $('#pending-tab').addClass('border-indigo-500 text-indigo-600').removeClass('border-transparent text-gray-500');
+                $('#approved-tab').removeClass('border-indigo-500 text-indigo-600').addClass('border-transparent text-gray-500');
+            });
+
+            // Close the review modal
+            $('#close-review-modal').on('click', () => $('#review-modal').addClass('hidden'));
+            
+            // Tab switching
+            $('#pending-tab').on('click', function() {
+                $(this).addClass('border-indigo-500 text-indigo-600').removeClass('border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300');
+                $('#approved-tab').removeClass('border-indigo-500 text-indigo-600').addClass('border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300');
+                loadReviewData('pending');
+            });
+
+            $('#approved-tab').on('click', function() {
+                $(this).addClass('border-indigo-500 text-indigo-600').removeClass('border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300');
+                $('#pending-tab').removeClass('border-indigo-500 text-indigo-600').addClass('border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300');
+                loadReviewData('approved');
+            });
+
+            // Load data into the review list panel
+            function loadReviewData(status = 'pending') {
+                const $listPanel = $('#review-list-panel');
+                const $detailPanel = $('#review-detail-panel');
+                $listPanel.html(''); // Clear previous list
+                $detailPanel.html('<p class="text-gray-500">請從左側列表選擇一個店家以查看詳細資訊。</p>'); // Reset detail panel
+
+                const storesToReview = allFeatures.filter(f => {
+                    const isApproved = f.get('approved');
+                    return status === 'pending' ? !isApproved : isApproved;
+                });
+
+                if (storesToReview.length === 0) {
+                    $listPanel.html(`<p class="p-4 text-sm text-gray-500">沒有${status === 'pending' ? '待審核' : '已審核'}的店家。</p>`);
+                    return;
+                }
+
+                storesToReview.forEach(feature => {
+                    const data = feature.getProperties();
+                    const listItem = $(`
+                        <div class="p-4 border-b cursor-pointer hover:bg-gray-100 review-item" data-id="${feature.getId()}">
+                            <p class="font-semibold text-gray-800">${data.name}</p>
+                            <p class="text-sm text-gray-600 truncate">${data.address}</p>
+                            <p class="text-xs text-gray-400 mt-1">提交者: ${data.submitterEmail || 'N/A'}</p>
+                        </div>
+                    `);
+                    $listPanel.append(listItem);
+                });
+            }
+
+            // Show details when a list item is clicked
+            $('#review-list-panel').on('click', '.review-item', function() {
+                $('.review-item').removeClass('bg-indigo-50');
+                $(this).addClass('bg-indigo-50');
+
+                const featureId = $(this).data('id');
+                const feature = allFeatures.find(f => f.getId() == featureId);
+                if (feature) {
+                    displayReviewDetails(feature);
+                }
+            });
+
+            // Display store details in the right panel
+            function displayReviewDetails(feature) {
+                const $detailPanel = $('#review-detail-panel');
+                const data = feature.getProperties();
+                const formatOptional = (label, value) => value ? `<p><strong>${label}:</strong> ${value}</p>` : '';
+
+                const detailHtml = `
+                    <div class="space-y-3 text-sm">
+                        <h3 class="text-xl font-bold text-gray-900">${data.name}</h3>
+                        <p class="font-semibold" style="color: ${categoryColors[data.category] || categoryColors['其他']}">${data.category}</p>
+                        <hr>
+                        <p><strong>地址:</strong> ${data.address}</p>
+                        <p><strong>聯絡方式:</strong> ${data.contact}</p>
+                        <p><strong>營業時間:</strong> ${data.hours}</p>
+                        <p><strong>公司產品:</strong></p>
+                        <p class="whitespace-pre-wrap bg-gray-50 p-2 rounded">${data.product}</p>
+                        <hr>
+                        ${formatOptional('信箱', data.email)}
+                        ${formatOptional('網頁', data.website)}
+                        ${formatOptional('傳真', data.fax)}
+                        <hr>
+                        <p><strong>座標:</strong> ${data.lon.toFixed(5)}, ${data.lat.toFixed(5)}</p>
+                        <p><strong>提交者:</strong> ${data.submitterName || 'N/A'} (${data.submitterEmail || 'N/A'})</p>
+                        <p><strong>提交時間:</strong> ${new Date(data.submissionId).toLocaleString()}</p>
+                    </div>
+                    <div class="mt-6 flex space-x-4">
+                        ${!data.approved ? `<button id="approve-btn" data-id="${feature.getId()}" class="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700">審核通過</button>` : ''}
+                        <button id="edit-in-review-btn" data-id="${feature.getId()}" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">編輯</button>
+                        <button id="delete-in-review-btn" data-id="${feature.getId()}" class="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700">刪除</button>
+                    </div>
+                `;
+                $detailPanel.html(detailHtml);
+            }
+            
+            // Handle action buttons in the detail panel
+            $('#review-detail-panel').on('click', '#approve-btn', function() {
+                const featureId = $(this).data('id');
+                sendAdminAction('approve', featureId);
+            });
+
+            $('#review-detail-panel').on('click', '#edit-in-review-btn', function() {
+                const featureId = $(this).data('id');
+                const featureToEdit = allFeatures.find(f => f.getId() == featureId);
+                if (featureToEdit) {
+                    $('#review-modal').addClass('hidden');
+                    openEditModalForAdmin(featureToEdit);
+                }
+            });
+            
+            $('#review-detail-panel').on('click', '#delete-in-review-btn', function() {
+                const featureId = $(this).data('id');
+                // A simple confirm dialog. For a better UX, you might want a custom modal.
+                if (window.confirm('確定要刪除這筆資料嗎？此操作無法復原。')) {
+                     sendAdminAction('delete', featureId);
+                }
+            });
+
+            // Send action to Google Apps Script
+            function sendAdminAction(action, submissionId) {
+                const feature = allFeatures.find(f => f.getId() == submissionId);
+                if (!feature) {
+                    showNotification('找不到該店家資料。', 'error');
+                    return;
+                }
+
+                showNotification(`正在執行 ${action} 操作...`);
+
+                const payload = {
+                    action: action,
+                    submissionId: submissionId,
+                    name: feature.get('name'), // Name is needed for deletion/update lookup
+                    adminEmail: userProfile.email // For logging/verification on backend
+                };
+
+                fetch(APPS_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) })
+                .then(() => {
+                    showNotification("操作成功！資料將在幾分鐘後更新。", 'success');
+                    $('#review-modal').addClass('hidden');
+                    setTimeout(loadData, 2000); // Reload all data
+                }).catch(error => {
+                    console.error('Admin action error:', error);
+                    showNotification('操作失敗，請稍後再試。', 'error');
+                });
+            }
+
+            // Open edit modal for admin (bypasses email check)
+            function openEditModalForAdmin(featureToEdit) {
+                const data = featureToEdit.getProperties();
+                $('#edit-submission-id').val(data.submissionId);
+                $('#edit-original-name').val(data.name);
+                $('#add-name').val(data.name);
+                $('#add-category').val(data.category);
+                $('#add-address').val(data.address);
+                $('#add-contact').val(data.contact);
+                $('#add-product').val(data.product);
+                $('#add-email').val(data.email);
+                $('#add-website').val(data.website);
+                $('#add-fax').val(data.fax);
+
+                $('#hours-container').empty();
+                if (data.hours) {
+                    const hoursParts = data.hours.split(';');
+                    hoursParts.forEach(part => {
+                        createTimeSlot();
+                        const row = $('.time-slot-row:last');
+                        const match = part.match(/週([一二三四五六日])-([一二三四五六日])\s*(\d{2}:\d{2})-(\d{2}:\d{2})/);
+                        if(match) {
+                            row.find('[name="start_day"]').val(match[1]);
+                            row.find('[name="end_day"]').val(match[2]);
+                            row.find('[name="start_time"]').val(match[3]);
+                            row.find('[name="end_time"]').val(match[4]);
+                        }
+                    });
+                } else {
+                     createTimeSlot();
+                }
+
+                if (tempMarker) map.removeOverlay(tempMarker);
+                const coordinate = ol.proj.fromLonLat([data.lon, data.lat]);
+                const markerEl = document.createElement('div');
+                markerEl.className = 'new-location-marker';
+                tempMarker = new ol.Overlay({
+                    element: markerEl, position: coordinate, positioning: 'bottom-center', stopEvent: false,
+                });
+                map.addOverlay(tempMarker);
+
+                $('#modal-title').text('編輯店家 (管理員)');
+                $('#add-location-modal').removeClass('hidden');
+                map.getView().animate({ center: coordinate, zoom: 17 });
+            }
 
 
             loadData();
