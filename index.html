@@ -571,9 +571,8 @@
             let fuse = null; 
             let isLoggedIn = false;
             let userProfile = {};
-            let isAdmin = false; // NEW: Admin flag
+            let isAdmin = false; 
             const sheetId = '1MfZimoJ04URFzX2Y3F5KsFBZe6ccrH0TuSSL6letLcM';
-            // IMPORTANT: User must fill this in
             const adminSheetGid = "1217747313"; 
             const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
             const adminSheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${adminSheetGid}`;
@@ -883,7 +882,7 @@
                     showNotification('進入新增模式：請點擊地圖上您想新增的位置。');
                     map.getTargetElement().style.cursor = 'crosshair';
                 } else {
-                    $(this).removeClass('bg-blue-600 text-white').addClass('bg-white text-gray-700');
+                    $(this).removeClass('bg-white text-gray-700').addClass('bg-white text-gray-700');
                     showNotification('已取消新增模式。', 'info');
                     map.getTargetElement().style.cursor = '';
                 }
@@ -1111,20 +1110,72 @@
                     { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
                 );
             }
+            
+            async function checkIfAdmin(email) {
+                console.log("--- 開始管理員權限檢查 ---");
+                console.log("1. 檢查 Email:", email);
+
+                if (!adminSheetGid || adminSheetGid === "請填入您的管理員名單工作表GID") {
+                    console.log("2. 未設定管理員 GID，跳過權限檢查。");
+                    console.log("--- 管理員權限檢查結束 ---");
+                    return;
+                }
+                
+                try {
+                    console.log("2. 正在讀取管理員名單，URL:", adminSheetUrl);
+                    const response = await fetch(`${adminSheetUrl}&t=${new Date().getTime()}`);
+                    if (!response.ok) throw new Error(`無法載入管理員名單: ${response.statusText}`);
+                    const csvText = await response.text();
+                    console.log("3. 成功取得管理員名單 CSV 內容:\n", csvText);
+
+                    Papa.parse(csvText, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            console.log("4. PapaParse 解析後的資料:", results.data);
+                            const admin = results.data.find(admin => admin.email && admin.email.trim() === email);
+                            console.log(`5. 正在比對 Email "${email}" 是否存在於名單中...`);
+
+                            if (admin) {
+                                console.log("6. 成功找到相符的管理員:", admin);
+                                isAdmin = true;
+                                $('#review-btn').removeClass('hidden');
+                                console.log("7. 已授予管理員權限，顯示審核按鈕。");
+                            } else {
+                                console.log("6. 在名單中找不到相符的 Email。");
+                                isAdmin = false;
+                                $('#review-btn').addClass('hidden');
+                                 console.log("7. 未授予管理員權限。");
+                            }
+                            console.log("--- 管理員權限檢查結束 ---");
+                        }
+                    });
+                } catch (error) {
+                    console.error("檢查管理員權限時發生錯誤:", error);
+                    showNotification('無法驗證管理員身份', 'error');
+                    console.log("--- 管理員權限檢查結束 (發生錯誤) ---");
+                }
+            }
+
             window.addEventListener('google-signin-success', (e) => {
                 userProfile = e.detail;
                 isLoggedIn = true;
                 $('.g_id_signin').hide();
                 $('#add-info').removeClass('hidden').addClass('flex');
                 $('#user-name').text(userProfile.name);
+                checkIfAdmin(userProfile.email);
             });
+
             $('#sign-out-btn').on('click', (e) => {
                 e.preventDefault();
                 google.accounts.id.disableAutoSelect();
                 google.accounts.id.revoke(userProfile.email, () => console.log('User signed out.'));
-                isLoggedIn = false; userProfile = {};
+                isLoggedIn = false; 
+                userProfile = {};
+                isAdmin = false;
                 $('.g_id_signin').show();
                 $('#add-info').removeClass('flex').addClass('hidden');
+                $('#review-btn').addClass('hidden');
                 showNotification('您已成功登出。');
             });
             
