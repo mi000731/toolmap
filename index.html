@@ -215,6 +215,8 @@
                      <div id="add-info" class="bg-white text-gray-700 py-2 px-4 rounded-lg shadow-lg items-center space-x-2 hidden">
                         <span id="user-name" class="font-bold"></span>
                         <button id="manage-btn" class="text-sm text-blue-600 hover:underline">管理</button>
+                        <!-- NEW: Admin review button, hidden by default -->
+                        <button id="review-btn" class="text-sm text-red-600 hover:underline hidden">審核</button>
                         <a href="#" id="sign-out-btn" class="text-xs text-gray-500 hover:underline ml-2">登出</a>
                     </div>
                 </div>
@@ -265,7 +267,7 @@
             </div>
         </main>
         
-        <!-- 新增店家 Modal -->
+        <!-- 新增/編輯店家 Modal -->
         <div id="add-location-modal" class="hidden absolute top-4 left-4 z-40 bg-white shadow-2xl w-full max-w-md rounded-lg flex flex-col" style="max-height: calc(100vh - 2rem);">
             <form id="add-location-form" class="flex-grow flex flex-col overflow-hidden">
                 <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
@@ -378,7 +380,7 @@
         </div>
     </div>
     
-    <!-- NEW: Management Modal -->
+    <!-- 管理 Modal -->
     <div id="management-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
             <div class="p-6 border-b flex justify-between items-center">
@@ -387,6 +389,32 @@
             </div>
             <div id="management-list-content" class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
                 <!-- User's stores will be listed here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW: Review Modal -->
+    <div id="review-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl flex flex-col" style="height: 90vh;">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-800">審核店家</h2>
+                <button id="close-review-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+            </div>
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-6 px-6" aria-label="Tabs">
+                    <button id="pending-tab" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600">待審核</button>
+                    <button id="approved-tab" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">已審核</button>
+                </nav>
+            </div>
+            <div class="flex-grow overflow-y-hidden flex">
+                <!-- List Panel -->
+                <div id="review-list-panel" class="w-1/3 border-r overflow-y-auto custom-scrollbar">
+                    <!-- List items will be injected here -->
+                </div>
+                <!-- Detail Panel -->
+                <div id="review-detail-panel" class="w-2/3 p-6 overflow-y-auto custom-scrollbar">
+                    <p class="text-gray-500">請從左側列表選擇一個店家以查看詳細資訊。</p>
+                </div>
             </div>
         </div>
     </div>
@@ -543,8 +571,12 @@
             let fuse = null; 
             let isLoggedIn = false;
             let userProfile = {};
+            let isAdmin = false; // NEW: Admin flag
             const sheetId = '1MfZimoJ04URFzX2Y3F5KsFBZe6ccrH0TuSSL6letLcM';
+            // IMPORTANT: User must fill this in
+            const adminSheetGid = "1217747313"; 
             const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
+            const adminSheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${adminSheetGid}`;
             const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwucN0-O8dXO-0QTVJwqEawDrK0i8gqCbEQwiNYwFjroetAJenW0RCyYX4AI4LRdfYcWA/exec';
             const visibilityThreshold = 16.5; 
 
@@ -851,7 +883,7 @@
                     showNotification('進入新增模式：請點擊地圖上您想新增的位置。');
                     map.getTargetElement().style.cursor = 'crosshair';
                 } else {
-                    $(this).removeClass('bg-white text-gray-700').addClass('bg-white text-gray-700');
+                    $(this).removeClass('bg-blue-600 text-white').addClass('bg-white text-gray-700');
                     showNotification('已取消新增模式。', 'info');
                     map.getTargetElement().style.cursor = '';
                 }
