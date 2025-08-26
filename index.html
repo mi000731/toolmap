@@ -568,8 +568,6 @@
             let userProfile = {};
             let isAdmin = false; 
             
-            // **REMOVED: All sensitive URLs and IDs are gone from the frontend.**
-            // **MODIFIED: Only the Apps Script URL is needed.**
             const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzCvwSU0lm6r01UxVtljbKAEEhn6dbW6KaUcwy0m40aGHC1NF3Z3T3CPitVjNk_HP4JQw/exec';
             
             const visibilityThreshold = 16.5; 
@@ -600,7 +598,6 @@
                 return { dx: x, dy: y };
             }
 
-            // **MODIFIED: loadData now fetches JSON from the Apps Script backend**
             async function loadData() {
                 showNotification('正在搜尋附近店家');
                 try {
@@ -680,7 +677,6 @@
 
                 } catch (error) {
                     showNotification('無法載入資料！請稍後再試。', 'error');
-                    console.error("Fetch Error:", error);
                 }
             }
 
@@ -970,7 +966,6 @@
                     const data = await response.json();
                     $('#add-address').val(data.results && data.results.length > 0 ? data.results[0].formatted_address : '無法自動定位地址');
                 } catch (error) {
-                    console.error('Reverse geocoding error:', error);
                     $('#add-address').val('無法自動定位地址');
                     showNotification('無法解析地址，請手動輸入。', 'warning');
                 }
@@ -1061,8 +1056,6 @@
                     lon: lonLat[0], lat: lonLat[1],
                 };
                 
-                console.log("送出至 Apps Script 的資料:", newData);
-
                 fetch(APPS_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(newData) })
                 .then(() => {
                     showNotification("資料已成功送出！感謝您的貢獻。", 'success');
@@ -1071,7 +1064,6 @@
                     tempMarker = null;
                     setTimeout(loadData, 2000);
                 }).catch(error => {
-                    console.error('Error submitting:', error);
                     showNotification('送出失敗，請稍後再試。', 'error');
                 }).finally(() => {
                     $submitBtn.prop('disabled', false).find('.submit-text').removeClass('hidden').end().find('.spinner').addClass('hidden');
@@ -1092,28 +1084,22 @@
                 );
             }
             
-            // **MODIFIED: checkIfAdmin now fetches from the Apps Script backend**
             async function checkIfAdmin(email) {
-                console.log("--- 開始管理員權限檢查 ---");
                 try {
                     const response = await fetch(`${APPS_SCRIPT_URL}?action=checkAdmin&email=${encodeURIComponent(email)}`);
                     if (!response.ok) throw new Error('Admin check failed');
                     const result = await response.json();
                     
                     if (result.isAdmin) {
-                        console.log("使用者是管理員。");
                         isAdmin = true;
                         $('#review-btn').removeClass('hidden');
                     } else {
-                        console.log("使用者不是管理員。");
                         isAdmin = false;
                         $('#review-btn').addClass('hidden');
                     }
                 } catch (error) {
-                    console.error("檢查管理員權限時發生錯誤:", error);
                     showNotification('無法驗證管理員身份', 'error');
                 }
-                 console.log("--- 管理員權限檢查結束 ---");
             }
 
             window.addEventListener('google-signin-success', (e) => {
@@ -1128,7 +1114,7 @@
             $('#sign-out-btn').on('click', (e) => {
                 e.preventDefault();
                 google.accounts.id.disableAutoSelect();
-                google.accounts.id.revoke(userProfile.email, () => console.log('User signed out.'));
+                google.accounts.id.revoke(userProfile.email, () => {});
                 isLoggedIn = false; 
                 userProfile = {};
                 isAdmin = false;
@@ -1409,7 +1395,6 @@
                     $('#review-modal').addClass('hidden');
                     setTimeout(loadData, 2000);
                 }).catch(error => {
-                    console.error('Admin action error:', error);
                     showNotification('操作失敗，請稍後再試。', 'error');
                 });
             }
