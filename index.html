@@ -268,67 +268,68 @@
         </main>
         
         <!-- 新增/編輯店家 Modal -->
-        <div id="add-location-modal" class="hidden absolute top-4 left-4 z-40 bg-white shadow-2xl w-full max-w-md rounded-lg flex flex-col" style="max-height: calc(100vh - 2rem);">
-            <form id="add-location-form" class="flex-grow flex flex-col overflow-hidden">
-                <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
-                    <h2 id="modal-title" class="text-xl font-bold text-gray-800">新增店家</h2>
-                    <div class="flex items-center space-x-2">
-                         <button id="submit-location-btn" type="submit" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center w-28">
-                            <span class="submit-text">送出審核</span>
-                            <span class="spinner hidden animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
-                        </button>
-                        <button id="close-add-location-modal" type="button" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
-                    </div>
-                </div>
-                <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
-                    <input type="hidden" id="edit-row-index" name="rowIndex">
-                    <input type="hidden" id="edit-original-name" name="originalName">
-                    <p class="text-sm text-gray-600">請填寫店家資訊，或在地圖上拖曳圖釘以調整位置。</p>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">店名 <span class="text-red-500">*</span></label>
-                        <input type="text" id="add-name" name="name" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">類別 <span class="text-red-500">*</span></label>
-                        <select id="add-category" name="category" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required></select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">地址 <span class="text-red-500">*</span></label>
-                        <input type="text" id="add-address" name="address" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">聯絡方式(電話) <span class="text-red-500">*</span></label>
-                        <input type="text" id="add-contact" name="contact" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="格式: 02-12345678" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">營業時間 <span class="text-red-500">*</span></label>
-                        <div id="hours-container" class="space-y-2">
-                            <!-- JS will generate time slots here -->
+        <div id="add-location-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div class="bg-white shadow-2xl w-full max-w-md rounded-lg flex flex-col" style="max-height: calc(100vh - 2rem);">
+                <form id="add-location-form" class="flex-grow flex flex-col overflow-hidden">
+                    <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
+                        <h2 id="modal-title" class="text-xl font-bold text-gray-800">新增店家</h2>
+                        <div class="flex items-center space-x-2">
+                             <button id="submit-location-btn" type="submit" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center w-28">
+                                <span class="submit-text">送出審核</span>
+                                <span class="spinner hidden animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
+                            </button>
+                            <button id="close-add-location-modal" type="button" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
                         </div>
-                        <button type="button" id="add-time-slot-btn" class="mt-2 text-sm text-blue-600 hover:text-blue-800">+ 新增時段</button>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">公司產品 <span class="text-red-500">*</span></label>
-                        <textarea id="add-product" name="product" rows="3" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required></textarea>
+                    <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
+                        <input type="hidden" id="edit-row-index" name="rowIndex">
+                        <input type="hidden" id="edit-original-name" name="originalName">
+                        <p class="text-sm text-gray-600">請填寫店家資訊，或在地圖上拖曳圖釘以調整位置。</p>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">店名 <span class="text-red-500">*</span></label>
+                            <input type="text" id="add-name" name="name" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">類別 <span class="text-red-500">*</span></label>
+                            <select id="add-category" name="category" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required></select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">地址 <span class="text-red-500">*</span></label>
+                            <input type="text" id="add-address" name="address" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">聯絡方式(電話) <span class="text-red-500">*</span></label>
+                            <input type="text" id="add-contact" name="contact" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="格式: 02-12345678" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">營業時間 <span class="text-red-500">*</span></label>
+                            <div id="hours-container" class="space-y-2">
+                                <!-- JS will generate time slots here -->
+                            </div>
+                            <button type="button" id="add-time-slot-btn" class="mt-2 text-sm text-blue-600 hover:text-blue-800">+ 新增時段</button>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">公司產品 <span class="text-red-500">*</span></label>
+                            <textarea id="add-product" name="product" rows="3" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" required></textarea>
+                        </div>
+                        <hr>
+                        <p class="text-sm text-gray-500">以下為選填項目</p>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">信箱</label>
+                            <input type="email" id="add-email" name="email" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">網頁</label>
+                            <input type="url" id="add-website" name="website" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">傳真</label>
+                            <input type="text" id="add-fax" name="fax" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                        </div>
                     </div>
-                    <hr>
-                    <p class="text-sm text-gray-500">以下為選填項目</p>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">信箱</label>
-                        <input type="email" id="add-email" name="email" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">網頁</label>
-                        <input type="url" id="add-website" name="website" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">傳真</label>
-                        <input type="text" id="add-fax" name="fax" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                    </div>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
-    </div>
 
     <!-- 篩選 Modal -->
     <div id="filter-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
@@ -393,7 +394,7 @@
         </div>
     </div>
 
-    <!-- NEW: Review Modal -->
+    <!-- Review Modal -->
     <div id="review-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl flex flex-col" style="height: 90vh;">
             <div class="p-4 border-b flex justify-between items-center">
@@ -459,7 +460,7 @@
         const nlscLayer = new ol.layer.Tile({
             source: new ol.source.XYZ({
                 url: 'https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}.png',
-                attributions: '國土測繪中心', crossOrigin: 'anonymous'
+                attributions: '超認真少年 X 國土測繪中心', crossOrigin: 'anonymous'
             })
         });
 
@@ -606,7 +607,7 @@
             }
 
             async function loadData() {
-                showNotification('正在從 Google 試算表載入資料...');
+                showNotification('正在搜尋附近店家');
                 try {
                     const response = await fetch(`${sheetUrl}&t=${new Date().getTime()}`);
                     if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
@@ -1278,13 +1279,7 @@
             });
             
             $('#manage-btn').on('click', function() {
-                console.log("--- 管理按鈕點擊 ---");
-                console.log("1. 目前登入使用者 Email:", userProfile.email);
-                console.log("2. 已載入的店家總數:", allFeatures.length);
-
                 const userStores = allFeatures.filter(f => f.get('submitterEmail') === userProfile.email);
-                console.log(`3. 篩選出 ${userStores.length} 筆符合此 Email 的店家`);
-
                 const $content = $('#management-list-content');
                 $content.html('');
 
@@ -1302,28 +1297,26 @@
                                 </div>
                                 <div class="flex items-center space-x-2">
                                     ${status}
-                                    <button class="edit-store-btn text-sm text-blue-600 hover:underline" data-id="${feature.getId()}" data-name="${data.name}">編輯</button>
+                                    <button class="edit-store-btn text-sm text-blue-600 hover:underline" data-id="${feature.getId()}">編輯</button>
                                 </div>
                             </div>
                         `;
                         $content.append(itemHtml);
                     });
                 }
-                console.log("4. 產生管理列表 HTML 並顯示 Modal");
                 $('#management-modal').removeClass('hidden');
             });
 
             $('#close-management-modal').on('click', () => $('#management-modal').addClass('hidden'));
             
             $('#management-list-content').on('click', '.edit-store-btn', function() {
-                console.log("--- 編輯按鈕點擊 ---");
                 const featureId = $(this).data('id');
                 const featureToEdit = allFeatures.find(f => f.getId() == featureId);
                 
                 if (featureToEdit) {
                     openEditModalForUser(featureToEdit);
                 } else {
-                    console.error("錯誤：在 allFeatures 中找不到符合條件的店家。");
+                    showNotification('找不到店家資料，可能已被刪除。', 'error');
                 }
             });
 
@@ -1394,12 +1387,11 @@
                 const data = feature.getProperties();
                 const formatOptional = (label, value) => value ? `<p><strong>${label}:</strong> ${value}</p>` : '';
                 
-                // **MODIFIED: Logic to show different buttons based on review status**
                 let actionButtons = '';
                 if (!data.approved) { // 待審核
                     actionButtons = `
                         <button class="admin-action-btn flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700" data-action="approve" data-row-index="${data.rowIndex}">審核通過</button>
-                        <button class="admin-action-btn flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700" data-action="delete" data-row-index="${data.rowIndex}">刪除</button>
+                        <button class="admin-action-btn flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700" data-action="delete" data-row-index="${data.rowIndex}">不通過</button>
                     `;
                 } else { // 已審核
                     actionButtons = `
@@ -1476,13 +1468,17 @@
                 });
             }
 
+            // **FIXED: This function now hides the management modal before showing the edit modal.**
             function openEditModalForUser(featureToEdit) {
                 const data = featureToEdit.getProperties();
                 // Clear admin-specific fields
                 $('#edit-row-index').val('');
-                // Set user-specific fields
+                // Set user-specific fields for finding the row in the backend
                 $('#edit-original-name').val(data.name);
                 
+                // Hide the management modal FIRST
+                $('#management-modal').addClass('hidden');
+
                 fillEditModal(data);
                 $('#modal-title').text('編輯店家');
             }
@@ -1491,7 +1487,7 @@
                 const data = featureToEdit.getProperties();
                 // Clear user-specific fields
                 $('#edit-original-name').val('');
-                // Set admin-specific fields
+                // Set admin-specific fields for finding the row in the backend
                 $('#edit-row-index').val(data.rowIndex);
                 
                 fillEditModal(data);
