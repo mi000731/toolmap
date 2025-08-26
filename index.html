@@ -17,9 +17,6 @@
     <!-- OpenLayers JS -->
     <script src="https://cdn.jsdelivr.net/npm/ol@v9.2.4/dist/ol.js"></script>
     
-    <!-- PapaParse for CSV parsing -->
-    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
-    
     <!-- Google Identity Services Library -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
@@ -197,7 +194,6 @@
             <div class="absolute top-4 right-4 z-10 flex flex-col items-end space-y-2">
                 <!-- 登入/新增說明按鈕 -->
                 <div id="login-status">
-                    <!-- MODIFIED: Enabled auto_select and disabled FedCM -->
                     <div id="g_id_onload"
                          data-client_id="35839698842-b73h9naufqdm7d0j378882k1e6aq6064.apps.googleusercontent.com"
                          data-callback="handleCredentialResponse"
@@ -215,7 +211,6 @@
                      <div id="add-info" class="bg-white text-gray-700 py-2 px-4 rounded-lg shadow-lg items-center space-x-2 hidden">
                         <span id="user-name" class="font-bold"></span>
                         <button id="manage-btn" class="text-sm text-blue-600 hover:underline">管理</button>
-                        <!-- NEW: Admin review button, hidden by default -->
                         <button id="review-btn" class="text-sm text-red-600 hover:underline hidden">審核</button>
                         <a href="#" id="sign-out-btn" class="text-xs text-gray-500 hover:underline ml-2">登出</a>
                     </div>
@@ -230,7 +225,6 @@
                       <path stroke-linecap="round" stroke-linejoin="round" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
                     </svg>
                 </button>
-                <!-- 新增店家按鈕 -->
                 <button id="add-location-mode-btn" class="bg-white text-gray-700 p-3 rounded-lg shadow-lg hover:bg-gray-100 transition-colors duration-300 flex items-center justify-center" title="新增店家">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
@@ -573,11 +567,11 @@
             let isLoggedIn = false;
             let userProfile = {};
             let isAdmin = false; 
-            const sheetId = '1MfZimoJ04URFzX2Y3F5KsFBZe6ccrH0TuSSL6letLcM';
-            const adminSheetGid = "1217747313"; 
-            const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
-            const adminSheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${adminSheetGid}`;
-            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyOwvUzFq0oM7o9yN-dBTLn_yDrzVUM5sX7KI7YoMnpAFAfsiRIJuyTOvETs2QOkCnv/exec';
+            
+            // **REMOVED: All sensitive URLs and IDs are gone from the frontend.**
+            // **MODIFIED: Only the Apps Script URL is needed.**
+            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzCvwSU0lm6r01UxVtljbKAEEhn6dbW6KaUcwy0m40aGHC1NF3Z3T3CPitVjNk_HP4JQw/exec';
+            
             const visibilityThreshold = 16.5; 
 
             function showNotification(message, type = 'info') {
@@ -606,98 +600,86 @@
                 return { dx: x, dy: y };
             }
 
+            // **MODIFIED: loadData now fetches JSON from the Apps Script backend**
             async function loadData() {
                 showNotification('正在搜尋附近店家');
                 try {
-                    const response = await fetch(`${sheetUrl}&t=${new Date().getTime()}`);
+                    const response = await fetch(`${APPS_SCRIPT_URL}?action=getData&t=${new Date().getTime()}`);
                     if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
-                    const csvText = await response.text();
+                    
+                    const results = await response.json();
                     
                     const coordCounts = new Map();
+                    vectorSource.clear();
+                    allFeatures = [];
+                    const pinyinOptions = { pattern: 'pinyin', toneType: 'none', removeNonZh: true };
 
-                    Papa.parse(csvText, {
-                        header: true, skipEmptyLines: true,
-                        complete: function(results) {
-                            vectorSource.clear();
-                            allFeatures = [];
-                            const pinyinOptions = { pattern: 'pinyin', toneType: 'none', removeNonZh: true };
+                    results.forEach((data, index) => {
+                        if (data['工廠名稱']) {
+                            const lon = parseFloat(data['經度']);
+                            const lat = parseFloat(data['緯度']);
+                            if (!isNaN(lon) && !isNaN(lat)) {
+                                
+                                const coordKey = `${lon.toFixed(5)},${lat.toFixed(5)}`;
+                                const count = coordCounts.get(coordKey) || 0;
+                                
+                                const { dx, dy } = getOffsetForIndex(count);
+                                const baseOffset = 0.00015;
+                                const finalLon = lon + dx * baseOffset;
+                                const finalLat = lat + dy * baseOffset;
 
-                            results.data.forEach((data, index) => {
-                                if (data['工廠名稱']) { // Only process rows with a name
-                                    const lon = parseFloat(data['經度']);
-                                    const lat = parseFloat(data['緯度']);
-                                    if (!isNaN(lon) && !isNaN(lat)) {
-                                        
-                                        const coordKey = `${lon.toFixed(5)},${lat.toFixed(5)}`;
-                                        const count = coordCounts.get(coordKey) || 0;
-                                        
-                                        const { dx, dy } = getOffsetForIndex(count);
-                                        const baseOffset = 0.00015;
-                                        const finalLon = lon + dx * baseOffset;
-                                        const finalLat = lat + dy * baseOffset;
+                                coordCounts.set(coordKey, count + 1);
 
-                                        coordCounts.set(coordKey, count + 1);
-                                        
-                                        // **MODIFIED: Add rowIndex to the feature properties**
-                                        // index is 0-based for the data array. Row 1 is header. So, actual row number is index + 2.
-                                        const rowIndex = index + 2;
-
-                                        const feature = new ol.Feature({
-                                            geometry: new ol.geom.Point(ol.proj.fromLonLat([finalLon, finalLat])),
-                                            name: data['工廠名稱'], 
-                                            category: data['分類'] || '其他', 
-                                            address: data['地址'],
-                                            contact: data['聯絡方式'], 
-                                            hours: data['營業時間'], 
-                                            product: data['公司產品'],
-                                            fax: data['傳真'], 
-                                            email: data['信箱'],
-                                            website: data['網頁'], 
-                                            lon: lon, 
-                                            lat: lat,
-                                            submissionId: data['Timestamp'], 
-                                            submitterEmail: data['submitterEmail'],
-                                            submitterName: data['submitterName'],
-                                            approved: data['審核'] ? data['審核'].toUpperCase() === 'TRUE' : false,
-                                            rowIndex: rowIndex, // Store the actual row number
-                                            name_pinyin: pinyin(data['工廠名稱'] || '', pinyinOptions),
-                                            address_pinyin: pinyin(data['地址'] || '', pinyinOptions),
-                                            product_pinyin: pinyin(data['公司產品'] || '', pinyinOptions)
-                                        });
-                                        // Use a unique ID for the feature itself, can be rowIndex
-                                        feature.setId(rowIndex);
-                                        allFeatures.push(feature);
-                                    }
-                                }
-                            });
-                            
-                            const approvedFeatures = allFeatures.filter(f => f.get('approved'));
-                            vectorSource.addFeatures(approvedFeatures);
-                            
-                            const fuseOptions = {
-                                includeScore: true,
-                                threshold: 0.1, 
-                                minMatchCharLength: 2,
-                                ignoreLocation: true,
-                                keys: [
-                                    'values_.name_pinyin',
-                                    'values_.address_pinyin',
-                                    'values_.product_pinyin'
-                                ]
-                            };
-                            fuse = new Fuse(allFeatures, fuseOptions);
-
-                            populateFiltersAndLegend();
-                            updateStoreList(); 
-                            $('#notification').addClass('hidden');
-                        },
-                        error: (err) => {
-                             showNotification('解析試算表資料時發生錯誤！', 'error');
-                             console.error("PapaParse Parsing Error:", err);
+                                const feature = new ol.Feature({
+                                    geometry: new ol.geom.Point(ol.proj.fromLonLat([finalLon, finalLat])),
+                                    name: data['工廠名稱'], 
+                                    category: data['分類'] || '其他', 
+                                    address: data['地址'],
+                                    contact: data['聯絡方式'], 
+                                    hours: data['營業時間'], 
+                                    product: data['公司產品'],
+                                    fax: data['傳真'], 
+                                    email: data['信箱'],
+                                    website: data['網頁'], 
+                                    lon: lon, 
+                                    lat: lat,
+                                    submissionId: data['Timestamp'], 
+                                    submitterEmail: data['submitterEmail'],
+                                    submitterName: data['submitterName'],
+                                    approved: data['審核'] ? String(data['審核']).toUpperCase() === 'TRUE' : false,
+                                    rowIndex: data.rowIndex, // Get rowIndex from backend
+                                    name_pinyin: pinyin(data['工廠名稱'] || '', pinyinOptions),
+                                    address_pinyin: pinyin(data['地址'] || '', pinyinOptions),
+                                    product_pinyin: pinyin(data['公司產品'] || '', pinyinOptions)
+                                });
+                                feature.setId(data.rowIndex);
+                                allFeatures.push(feature);
+                            }
                         }
                     });
+                    
+                    const approvedFeatures = allFeatures.filter(f => f.get('approved'));
+                    vectorSource.addFeatures(approvedFeatures);
+                    
+                    const fuseOptions = {
+                        includeScore: true,
+                        threshold: 0.1, 
+                        minMatchCharLength: 2,
+                        ignoreLocation: true,
+                        keys: [
+                            'values_.name_pinyin',
+                            'values_.address_pinyin',
+                            'values_.product_pinyin'
+                        ]
+                    };
+                    fuse = new Fuse(allFeatures, fuseOptions);
+
+                    populateFiltersAndLegend();
+                    updateStoreList(); 
+                    $('#notification').addClass('hidden');
+
                 } catch (error) {
-                    showNotification('無法載入 Google 試算表資料！請檢查連結是否已發佈。', 'error');
+                    showNotification('無法載入資料！請稍後再試。', 'error');
                     console.error("Fetch Error:", error);
                 }
             }
@@ -751,7 +733,6 @@
             }
             
             function applyFilters() {
-                console.log("--- 開始搜尋 ---");
                 const category = $('#category-select').val();
                 const keyword = $('#keyword-search').val();
                 const isOpenOnly = $('#is-open-checkbox').is(':checked');
@@ -759,29 +740,17 @@
                 let results = allFeatures;
 
                 if (keyword && fuse) {
-                    console.log(`1. 原始關鍵字: "${keyword}"`);
                     const pinyinKeyword = pinyin(keyword, { pattern: 'pinyin', toneType: 'none', removeNonZh: true });
-                    console.log(`2. 轉換後拼音: "${pinyinKeyword}"`);
                     const fuseResult = fuse.search(pinyinKeyword);
                     results = fuseResult.map(result => result.item);
-                    console.log(`3. Fuse.js 模糊搜尋找到 ${results.length} 筆結果`);
                 }
 
                 const finalFeatures = results.filter(feature => {
-                    if (!feature.get('approved')) {
-                        return false;
-                    }
-                    if (category && feature.get('category') !== category) {
-                        return false;
-                    }
-                    if (isOpenOnly && !isCurrentlyOpen(feature.get('hours'))) {
-                        return false;
-                    }
+                    if (!feature.get('approved')) return false;
+                    if (category && feature.get('category') !== category) return false;
+                    if (isOpenOnly && !isCurrentlyOpen(feature.get('hours'))) return false;
                     return true;
                 });
-                
-                console.log(`4. 經過其他篩選後，最終顯示 ${finalFeatures.length} 筆結果`);
-                console.log("--- 搜尋結束 ---");
                 
                 vectorSource.clear();
                 vectorSource.addFeatures(finalFeatures);
@@ -1081,12 +1050,11 @@
 
                 const newData = {
                     action: action,
-                    rowIndex: rowIndex, // Will be empty for create/user-update
-                    originalName: originalName, // Will be empty for create/admin-modify
-                    timestamp: new Date().toISOString(), // For new submissions
+                    rowIndex: rowIndex, 
+                    originalName: originalName, 
                     submitterName: userProfile.name || 'N/A', 
                     submitterEmail: userProfile.email || 'N/A',
-                    adminEmail: userProfile.email, // For logging admin actions
+                    adminEmail: userProfile.email, 
                     name: formData.get('name'), category: formData.get('category'), address: formData.get('address'),
                     contact: formData.get('contact'), product: formData.get('product'), fax: formData.get('fax'),
                     email: formData.get('email'), website: formData.get('website'), hours: hoursStrings.join('; '),
@@ -1124,50 +1092,28 @@
                 );
             }
             
+            // **MODIFIED: checkIfAdmin now fetches from the Apps Script backend**
             async function checkIfAdmin(email) {
                 console.log("--- 開始管理員權限檢查 ---");
-                console.log("1. 檢查 Email:", email);
-
-                if (!adminSheetGid || adminSheetGid === "請填入您的管理員名單工作表GID") {
-                    console.log("2. 未設定管理員 GID，跳過權限檢查。");
-                    console.log("--- 管理員權限檢查結束 ---");
-                    return;
-                }
-                
                 try {
-                    console.log("2. 正在讀取管理員名單，URL:", adminSheetUrl);
-                    const response = await fetch(`${adminSheetUrl}&t=${new Date().getTime()}`);
-                    if (!response.ok) throw new Error(`無法載入管理員名單: ${response.statusText}`);
-                    const csvText = await response.text();
-                    console.log("3. 成功取得管理員名單 CSV 內容:\n", csvText);
-
-                    Papa.parse(csvText, {
-                        header: true,
-                        skipEmptyLines: true,
-                        complete: function(results) {
-                            console.log("4. PapaParse 解析後的資料:", results.data);
-                            const admin = results.data.find(admin => admin.email && admin.email.trim() === email);
-                            console.log(`5. 正在比對 Email "${email}" 是否存在於名單中...`);
-
-                            if (admin) {
-                                console.log("6. 成功找到相符的管理員:", admin);
-                                isAdmin = true;
-                                $('#review-btn').removeClass('hidden');
-                                console.log("7. 已授予管理員權限，顯示審核按鈕。");
-                            } else {
-                                console.log("6. 在名單中找不到相符的 Email。");
-                                isAdmin = false;
-                                $('#review-btn').addClass('hidden');
-                                 console.log("7. 未授予管理員權限。");
-                            }
-                            console.log("--- 管理員權限檢查結束 ---");
-                        }
-                    });
+                    const response = await fetch(`${APPS_SCRIPT_URL}?action=checkAdmin&email=${encodeURIComponent(email)}`);
+                    if (!response.ok) throw new Error('Admin check failed');
+                    const result = await response.json();
+                    
+                    if (result.isAdmin) {
+                        console.log("使用者是管理員。");
+                        isAdmin = true;
+                        $('#review-btn').removeClass('hidden');
+                    } else {
+                        console.log("使用者不是管理員。");
+                        isAdmin = false;
+                        $('#review-btn').addClass('hidden');
+                    }
                 } catch (error) {
                     console.error("檢查管理員權限時發生錯誤:", error);
                     showNotification('無法驗證管理員身份', 'error');
-                    console.log("--- 管理員權限檢查結束 (發生錯誤) ---");
                 }
+                 console.log("--- 管理員權限檢查結束 ---");
             }
 
             window.addEventListener('google-signin-success', (e) => {
