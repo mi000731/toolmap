@@ -544,7 +544,7 @@
             let userProfile = {};
             const sheetId = '1MfZimoJ04URFzX2Y3F5KsFBZe6ccrH0TuSSL6letLcM';
             const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
-            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyyQUk50qKk33TSaqpLCM4HgRRXp0jE5xnAuWwTZ56655M0QrGthAWfbwbCywmNROnDKQ/exec';
+            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwrAeqWENlAVUJedsXgjRYd5cuF7rgKYlAs6tRtkvrW8J4I4yu_6WItbiAvgpBgLwGDsQ/exec';
             const visibilityThreshold = 16.5; 
 
             function showNotification(message, type = 'info') {
@@ -1032,10 +1032,13 @@
                 const submissionId = $('#edit-submission-id').val();
                 const originalName = $('#edit-original-name').val();
                 
+                // MODIFIED: Use originalName to determine action
+                const action = originalName ? 'update' : 'create';
+
                 const newData = {
                     timestamp: submissionId || new Date().toISOString(), 
                     submissionId: submissionId || new Date().toISOString(),
-                    action: submissionId ? 'update' : 'create',
+                    action: action,
                     originalName: originalName, // Send original name for lookup
                     submitterName: userProfile.name || 'N/A', 
                     submitterEmail: userProfile.email || 'N/A',
