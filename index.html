@@ -280,6 +280,7 @@
                 <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
                     <!-- NEW: Hidden input for storing submission ID for edits -->
                     <input type="hidden" id="edit-submission-id" name="submissionId">
+                    <input type="hidden" id="edit-original-name" name="originalName">
                     <p class="text-sm text-gray-600">請填寫店家資訊，或在地圖上拖曳圖釘以調整位置。</p>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">店名 <span class="text-red-500">*</span></label>
@@ -801,6 +802,7 @@
 
                 $('#add-location-form')[0].reset();
                 $('#edit-submission-id').val('');
+                $('#edit-original-name').val('');
                 $('#hours-container').empty();
                 createTimeSlot();
                 reverseGeocode(lonLat[0], lonLat[1]);
@@ -1029,11 +1031,13 @@
                 const lonLat = ol.proj.toLonLat(tempMarker.getPosition());
                 const formData = new FormData(this);
                 const submissionId = $('#edit-submission-id').val();
+                const originalName = $('#edit-original-name').val();
                 
                 const newData = {
                     timestamp: submissionId || new Date().toISOString(), 
                     submissionId: submissionId || new Date().toISOString(),
                     action: submissionId ? 'update' : 'create',
+                    originalName: originalName, // Send original name for lookup
                     submitterName: userProfile.name || 'N/A', 
                     submitterEmail: userProfile.email || 'N/A',
                     name: formData.get('name'), category: formData.get('category'), address: formData.get('address'),
@@ -1041,6 +1045,9 @@
                     email: formData.get('email'), website: formData.get('website'), hours: hoursStrings.join('; '),
                     lon: lonLat[0], lat: lonLat[1],
                 };
+                
+                console.log("送出至 Apps Script 的資料:", newData);
+
                 fetch(APPS_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(newData) })
                 .then(() => {
                     showNotification("資料已成功送出審核！感謝您的貢獻。", 'success');
@@ -1189,7 +1196,6 @@
                     userStores.forEach(feature => {
                         const data = feature.getProperties();
                         const status = data.approved ? '<span class="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded-full">已審核</span>' : '<span class="text-xs font-semibold bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">審核中</span>';
-                        // MODIFIED: Use data-name to identify the store
                         const itemHtml = `
                             <div class="flex justify-between items-center py-2 border-b">
                                 <div>
@@ -1198,7 +1204,7 @@
                                 </div>
                                 <div class="flex items-center space-x-2">
                                     ${status}
-                                    <button class="edit-store-btn text-sm text-blue-600 hover:underline" data-name="${data.name}">編輯</button>
+                                    <button class="edit-store-btn text-sm text-blue-600 hover:underline" data-id="${data.submissionId}" data-name="${data.name}">編輯</button>
                                 </div>
                             </div>
                         `;
@@ -1221,7 +1227,6 @@
                     return;
                 }
 
-                // MODIFIED: Find feature by both email and name for accuracy
                 const featureToEdit = allFeatures.find(f => f.get('submitterEmail') === userProfile.email && f.get('name') === storeName);
                 
                 console.log(`2. 在 allFeatures 中尋找 Email 為 "${userProfile.email}" 且名稱為 "${storeName}" 的店家...`);
@@ -1233,6 +1238,7 @@
                     const data = featureToEdit.getProperties();
                     
                     $('#edit-submission-id').val(data.submissionId);
+                    $('#edit-original-name').val(data.name); // Store original name for backend lookup
                     $('#add-name').val(data.name);
                     $('#add-category').val(data.category);
                     $('#add-address').val(data.address);
