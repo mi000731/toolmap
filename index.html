@@ -1068,7 +1068,7 @@
                 let action = 'create';
                 if (originalName) {
                     // Differentiate between a regular user updating and an admin updating
-                    action = isAdmin ? 'admin_update' : 'update';
+                    action = isAdmin ? 'admin_modify' : 'update';
                 }
 
                 const newData = {
@@ -1078,6 +1078,7 @@
                     originalName: originalName, // Send original name for lookup
                     submitterName: userProfile.name || 'N/A', 
                     submitterEmail: userProfile.email || 'N/A',
+                    adminEmail: userProfile.email, // Always send admin email for logging
                     name: formData.get('name'), category: formData.get('category'), address: formData.get('address'),
                     contact: formData.get('contact'), product: formData.get('product'), fax: formData.get('fax'),
                     email: formData.get('email'), website: formData.get('website'), hours: hoursStrings.join('; '),
@@ -1456,6 +1457,20 @@
                 const $detailPanel = $('#review-detail-panel');
                 const data = feature.getProperties();
                 const formatOptional = (label, value) => value ? `<p><strong>${label}:</strong> ${value}</p>` : '';
+                
+                // MODIFIED: Logic to show different buttons based on review status
+                let actionButtons = '';
+                if (!data.approved) { // 待審核
+                    actionButtons = `
+                        <button id="approve-btn" data-id="${feature.getId()}" class="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700">審核通過</button>
+                        <button id="delete-in-review-btn" data-id="${feature.getId()}" class="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700">刪除</button>
+                    `;
+                } else { // 已審核
+                    actionButtons = `
+                        <button id="edit-in-review-btn" data-id="${feature.getId()}" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">編輯</button>
+                        <button id="delete-in-review-btn" data-id="${feature.getId()}" class="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700">刪除</button>
+                    `;
+                }
 
                 const detailHtml = `
                     <div class="space-y-3 text-sm">
@@ -1472,14 +1487,12 @@
                         ${formatOptional('網頁', data.website)}
                         ${formatOptional('傳真', data.fax)}
                         <hr>
-                        <p><strong>座標:</strong> ${data.lon.toFixed(5)}, ${data.lat.toFixed(5)}</p>
+                        <p><strong>座標:</strong> ${data.lon ? data.lon.toFixed(5) : 'N/A'}, ${data.lat ? data.lat.toFixed(5) : 'N/A'}</p>
                         <p><strong>提交者:</strong> ${data.submitterName || 'N/A'} (${data.submitterEmail || 'N/A'})</p>
                         <p><strong>提交時間:</strong> ${new Date(data.submissionId).toLocaleString()}</p>
                     </div>
                     <div class="mt-6 flex space-x-4">
-                        ${!data.approved ? `<button id="approve-btn" data-id="${feature.getId()}" class="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700">審核通過</button>` : ''}
-                        <button id="edit-in-review-btn" data-id="${feature.getId()}" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">編輯</button>
-                        <button id="delete-in-review-btn" data-id="${feature.getId()}" class="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700">刪除</button>
+                        ${actionButtons}
                     </div>
                 `;
                 $detailPanel.html(detailHtml);
@@ -1503,7 +1516,7 @@
             $('#review-detail-panel').on('click', '#delete-in-review-btn', function() {
                 const featureId = $(this).data('id');
                 // A simple confirm dialog. For a better UX, you might want a custom modal.
-                if (window.confirm('確定要刪除這筆資料嗎？此操作無法復原。')) {
+                if (window.confirm('確定要刪除這筆資料嗎？此操作將無法復原。')) {
                      sendAdminAction('delete', featureId);
                 }
             });
@@ -1516,12 +1529,11 @@
                     return;
                 }
 
-                showNotification(`正在執行 ${action} 操作...`);
+                showNotification(`正在執行操作...`);
 
                 const payload = {
                     action: action,
                     submissionId: submissionId,
-                    name: feature.get('name'), // Name is needed for deletion/update lookup
                     adminEmail: userProfile.email // For logging/verification on backend
                 };
 
