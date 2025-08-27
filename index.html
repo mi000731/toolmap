@@ -578,7 +578,7 @@
             let userProfile = {};
             let isAdmin = false; 
             
-            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyeBkQHGERCQpMbFIxhXaBMSuWAwrFWMcnz6T2RD-y5Tun6bucp2IjH2LJPYi5a-GkL/exec';
+            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzCvwSU0lm6r01UxVtljbKAEEhn6dbW6KaUcwy0m40aGHC1NF3Z3T3CPitVjNk_HP4JQw/exec';
             
             const visibilityThreshold = 16.5; 
 
@@ -724,7 +724,7 @@
                 const currentTime = now.getHours() * 100 + now.getMinutes();
 
                 const timeSlots = hoursString.split(/;|\s+/).filter(p => p).map(part => {
-                    const match = part.match(/週([一二三四五六日])~週([一二三四五六日])\s*(\d{2}):(\d{2})-(\d{2}):(\d{2})/);
+                    const match = part.match(/週([一二三四五六日])[~-]週([一二三四五六日])\s*(\d{2}):(\d{2})-(\d{2}):(\d{2})/);
                     if (!match) return null;
                     return {
                         startDay: dayMap[match[1]],
@@ -737,7 +737,7 @@
                 }).filter(Boolean);
 
                 if (timeSlots.length === 0) {
-                     return { status: 'unknown', message: '格式錯誤', color: 'text-gray-500' };
+                     return { status: 'unknown', message: '未提供', color: 'text-gray-500' };
                 }
 
                 // Check if currently open
@@ -1581,7 +1581,7 @@
                     hoursParts.forEach(part => {
                         createTimeSlot();
                         const row = $('.time-slot-row:last');
-                        const match = part.match(/週([一二三四五六日])~週([一二三四五六日])\s*(\d{2}:\d{2})-(\d{2}:\d{2})/);
+                        const match = part.match(/週([一二三四五六日])[~-]週([一二三四五六日])\s*(\d{2}:\d{2})-(\d{2}:\d{2})/);
                         if(match) {
                             row.find('[name="start_day"]').val(match[1]);
                             row.find('[name="end_day"]').val(match[2]);
