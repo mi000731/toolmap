@@ -723,7 +723,7 @@
                 const currentDay = now.getDay();
                 const currentTime = now.getHours() * 100 + now.getMinutes();
 
-                const timeSlots = hoursString.split(/;|\n|\s+/).filter(p => p).map(part => {
+                const timeSlots = hoursString.split(/;|\n/).filter(p => p.trim()).map(part => {
                     const match = part.match(/週([一二三四五六日])[~-]([一二三四五六日])\s*(\d{2}):(\d{2})-(\d{2}):(\d{2})/);
                     if (!match) return null;
                     return {
@@ -1023,7 +1023,12 @@
                         if(data.line) {
                             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                             const lineUrl = isMobile ? `line://ti/p/~${data.line}` : `https://line.me/ti/p/~${data.line}`;
-                            buttonsHtml += `<a href="${lineUrl}" target="_blank" class="${buttonClass} bg-green-100 hover:bg-green-200 text-green-700" title="LINE"><svg class="w-6 h-6" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-88a8,8,0,0,1-8-8V96a8,8,0,0,1,16,0v24A8,8,0,0,1,120,128Zm-40,0a8,8,0,0,1-8-8V96a8,8,0,0,1,16,0v24A8,8,0,0,1,80,128Zm88,0a8,8,0,0,1-8-8V96a8,8,0,0,1,16,0v24A8,8,0,0,1,168,128Zm-48,48c-20.65,0-36.43-14.4-36.43-32.23a8,8,0,0,1,16,0c0,10.13,8.43,16.23,20.43,16.23S140,154.13,140,143.77a8,8,0,0,1,16,0C156,161.6,140.65,176,120,176Z"/></svg></a>`;
+                            buttonsHtml += `<a href="${lineUrl}" target="_blank" class="${buttonClass} bg-green-100 hover:bg-green-200" title="LINE">
+                                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="12" cy="12" r="10" fill="#06C755"/>
+                                    <text x="12" y="15" font-family="Arial, sans-serif" font-size="8" fill="white" text-anchor="middle" font-weight="bold">LINE</text>
+                                </svg>
+                            </a>`;
                         }
 
                         popupContent.innerHTML = `
@@ -1307,7 +1312,12 @@
                                      if(data.line) {
                                         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                                         const lineUrl = isMobile ? `line://ti/p/~${data.line}` : `https://line.me/ti/p/~${data.line}`;
-                                        buttonsHtml += `<a href="${lineUrl}" target="_blank" class="${buttonClass} bg-green-100 hover:bg-green-200 text-green-700" title="LINE"><svg class="w-6 h-6" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-88a8,8,0,0,1-8-8V96a8,8,0,0,1,16,0v24A8,8,0,0,1,120,128Zm-40,0a8,8,0,0,1-8-8V96a8,8,0,0,1,16,0v24A8,8,0,0,1,80,128Zm88,0a8,8,0,0,1-8-8V96a8,8,0,0,1,16,0v24A8,8,0,0,1,168,128Zm-48,48c-20.65,0-36.43-14.4-36.43-32.23a8,8,0,0,1,16,0c0,10.13,8.43,16.23,20.43,16.23S140,154.13,140,143.77a8,8,0,0,1,16,0C156,161.6,140.65,176,120,176Z"/></svg></a>`;
+                                        buttonsHtml += `<a href="${lineUrl}" target="_blank" class="${buttonClass} bg-green-100 hover:bg-green-200" title="LINE">
+                                            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <circle cx="12" cy="12" r="10" fill="#06C755"/>
+                                                <text x="12" y="15" font-family="Arial, sans-serif" font-size="8" fill="white" text-anchor="middle" font-weight="bold">LINE</text>
+                                            </svg>
+                                        </a>`;
                                      }
                                      popupContent.innerHTML = `<h3 class="text-lg font-bold text-gray-800">${data.name}</h3><p class="text-sm font-semibold mb-2" style="color: ${categoryColors[data.category] || categoryColors['其他']}">${data.category}</p><div class="space-y-1 text-sm"><p><strong>地址:</strong> ${data.address}</p><p><strong>聯絡方式:</strong> ${data.contact || '未提供'}</p>${hoursHtml}<div><strong>公司產品:</strong> <span>${productDisplay}</span> ${showMoreBtn}</div></div><div class="mt-3 flex items-center gap-2">${buttonsHtml}</div>`;
                                  }, 200);
@@ -1581,7 +1591,7 @@
                     hoursParts.forEach(part => {
                         createTimeSlot();
                         const row = $('.time-slot-row:last');
-                        const match = part.match(/週([一二三四五六日])[~-]週([一二三四五六日])\s*(\d{2}:\d{2})-(\d{2}:\d{2})/);
+                        const match = part.match(/週([一二三四五六日])[~-]([一二三四五六日])\s*(\d{2}:\d{2})-(\d{2}:\d{2})/);
                         if(match) {
                             row.find('[name="start_day"]').val(match[1]);
                             row.find('[name="end_day"]').val(match[2]);
