@@ -293,7 +293,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">聯絡方式(電話) <span class="text-red-500">*</span></label>
-                            <input type="text" id="add-contact" name="contact" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="格式: 02-12345678" required>
+                            <input type="text" id="add-contact" name="contact" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="格式: 0912345678 或 02-12345678" required>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">營業時間 <span class="text-red-500">*</span></label>
@@ -512,7 +512,6 @@
 
                 if (resolution <= 50) {
                     let name = originalFeature.get('name');
-                    if (name.length > 8) name = name.substring(0, 8) + '...';
                     clonedStyle.setText(new ol.style.Text({
                         text: name, font: 'bold 13px sans-serif', fill: new ol.style.Fill({ color: '#333' }),
                         backgroundFill: new ol.style.Fill({ color: 'rgba(255, 255, 255, 0.85)' }),
@@ -990,47 +989,87 @@
                 const $submitBtn = $('#submit-location-btn');
                 
                 let isValid = true;
+                
+                // --- Validation Logic ---
+
+                // 1. Contact Number Validation
                 const $contactInput = $('#add-contact');
-                const $productInput = $('#add-product');
-
+                const contactValue = $contactInput.val();
+                const phoneRegex = /^(09\d{8}|0\d{1,2}-?\d{6,8})$/;
                 $contactInput.removeClass('border-red-500');
-                $productInput.removeClass('border-red-500');
 
-                const contactValue = $contactInput.val().replace(/[^0-9]/g, '');
-                if (contactValue.length < 6) {
-                    showNotification('聯絡方式(電話)至少需要6個數字。', 'error');
+                if (!phoneRegex.test(contactValue)) {
+                    showNotification('聯絡方式格式不正確，請檢查手機或市話號碼。', 'error');
                     $contactInput.addClass('border-red-500');
                     isValid = false;
                 }
 
+                // 2. Product Info Validation
+                const $productInput = $('#add-product');
+                $productInput.removeClass('border-red-500');
                 const productValue = $productInput.val().trim();
                 if (productValue.length < 6) {
-                    if (isValid) {
-                        showNotification('公司產品至少需要6個文字。', 'error');
-                    }
+                    showNotification('公司產品至少需要6個文字。', 'error');
                     $productInput.addClass('border-red-500');
                     isValid = false;
                 }
 
-                if (!isValid) {
-                    return;
+                // 3. Business Hours Overlap Validation
+                const dayMap = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 7 };
+                const selectedDays = new Set();
+                let hoursAreValid = true;
+
+                $('.time-slot-row').each(function() {
+                    const startDayStr = $(this).find('[name="start_day"]').val();
+                    const endDayStr = $(this).find('[name="end_day"]').val();
+                    const startTime = $(this).find('[name="start_time"]').val();
+                    const endTime = $(this).find('[name="end_time"]').val();
+
+                    if(!startDayStr || !endDayStr || !startTime || !endTime) {
+                        hoursAreValid = false; // Incomplete row
+                        return false; 
+                    }
+
+                    let startDay = dayMap[startDayStr];
+                    let endDay = dayMap[endDayStr];
+
+                    if (endDay < startDay) { // Week wrap-around (e.g., Fri to Tue)
+                        for (let i = startDay; i <= 7; i++) {
+                            if (selectedDays.has(i)) { hoursAreValid = false; return false; }
+                            selectedDays.add(i);
+                        }
+                        for (let i = 1; i <= endDay; i++) {
+                             if (selectedDays.has(i)) { hoursAreValid = false; return false; }
+                            selectedDays.add(i);
+                        }
+                    } else { // Normal range (e.g., Mon to Fri)
+                        for (let i = startDay; i <= endDay; i++) {
+                            if (selectedDays.has(i)) { hoursAreValid = false; return false; }
+                            selectedDays.add(i);
+                        }
+                    }
+                });
+
+                if (!hoursAreValid) {
+                    showNotification('營業時間的星期有重疊或未填寫完整，請重新設定。', 'error');
+                    isValid = false;
                 }
+
+                if (!isValid) {
+                    return; // Stop submission if any validation fails
+                }
+
+                // --- End of Validation Logic ---
 
                 $submitBtn.prop('disabled', true).find('.submit-text').addClass('hidden');
                 $submitBtn.find('.spinner').removeClass('hidden');
-                let hoursStrings = [], hoursValid = true;
-                if ($('.time-slot-row').length === 0) hoursValid = false;
+                let hoursStrings = [];
                 $('.time-slot-row').each(function() {
                     const startDay = $(this).find('[name="start_day"]').val(), endDay = $(this).find('[name="end_day"]').val(),
                           startTime = $(this).find('[name="start_time"]').val(), endTime = $(this).find('[name="end_time"]').val();
-                    if(!startDay || !endDay || !startTime || !endTime) hoursValid = false;
                     hoursStrings.push(`週${startDay}-${endDay} ${startTime}-${endTime}`);
                 });
-                if (!hoursValid) {
-                    showNotification('請填寫完整的營業時間。', 'error');
-                    $submitBtn.prop('disabled', false).find('.submit-text').removeClass('hidden').end().find('.spinner').addClass('hidden');
-                    return;
-                }
+
                 const lonLat = ol.proj.toLonLat(tempMarker.getPosition());
                 const formData = new FormData(this);
                 const rowIndex = $('#edit-row-index').val();
