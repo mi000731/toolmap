@@ -262,20 +262,20 @@
         </main>
         
         <!-- 新增/編輯店家 Modal -->
-        <div id="add-location-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div class="bg-white shadow-2xl w-full max-w-md rounded-lg flex flex-col" style="max-height: calc(100vh - 2rem);">
+        <div id="add-location-modal" class="hidden fixed inset-0 z-[60] flex items-start justify-center p-4 pt-12 sm:items-center sm:pt-4">
+            <div class="bg-white shadow-2xl w-full max-w-md rounded-lg flex flex-col" style="max-height: calc(100vh - 5rem);">
                 <form id="add-location-form" class="flex-grow flex flex-col overflow-hidden">
                     <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
                         <h2 id="modal-title" class="text-xl font-bold text-gray-800">新增店家</h2>
                         <div class="flex items-center space-x-2">
                              <button id="submit-location-btn" type="submit" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center w-28">
-                                <span class="submit-text">送出</span>
+                                <span class="submit-text">送出審核</span>
                                 <span class="spinner hidden animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
                             </button>
                             <button id="close-add-location-modal" type="button" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
                         </div>
                     </div>
-                    <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
+                    <div class="px-6 pt-2 pb-6 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
                         <input type="hidden" id="edit-row-index" name="rowIndex">
                         <input type="hidden" id="edit-original-name" name="originalName">
                         <p class="text-sm text-gray-600">請填寫店家資訊，或在地圖上拖曳圖釘以調整位置。</p>
@@ -1399,7 +1399,6 @@
                 });
             }
 
-            // **FIXED: This function now hides the management modal before showing the edit modal.**
             function openEditModalForUser(featureToEdit) {
                 const data = featureToEdit.getProperties();
                 // Clear admin-specific fields
