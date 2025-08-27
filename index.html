@@ -784,7 +784,7 @@
                         if (inDayRange) {
                             if (i > 0 || (i === 0 && currentTime < slot.startTime)) {
                                 const dayPrefix = i === 0 ? '' : `週${dayNameMap[nextDay]} `;
-                                return { status: 'closed', message: `已打烊<br>下次開始營業時間： ${dayPrefix}${slot.startTimeStr}`, color: 'text-red-600' };
+                                return { status: 'closed', message: `已打烊, color: 'text-red-600' <br>下次開始營業時間： ${dayPrefix}${slot.startTimeStr}`};
                             }
                         }
                     }
