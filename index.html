@@ -724,7 +724,7 @@
                 const currentTime = now.getHours() * 100 + now.getMinutes();
 
                 const timeSlots = hoursString.split(/;|\n/).filter(p => p.trim()).map(part => {
-                    const match = part.match(/週([一二三四五六日])[~-]([一二三四五六日])\s*(\d{2}):(\d{2})-(\d{2}):(\d{2})/);
+                    const match = part.match(/週([一二三四五六日])[~-]/週([一二三四五六日])\s*(\d{2}):(\d{2})-(\d{2}):(\d{2})/);
                     if (!match) return null;
                     return {
                         startDay: dayMap[match[1]],
