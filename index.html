@@ -275,7 +275,7 @@
                             <button id="close-add-location-modal" type="button" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
                         </div>
                     </div>
-                    <div class="px-6 pt-2 pb-6 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
+                    <div class="px-6 pt-2 pb-16 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
                         <input type="hidden" id="edit-row-index" name="rowIndex">
                         <input type="hidden" id="edit-original-name" name="originalName">
                         <p class="text-sm text-gray-600">請填寫店家資訊，或在地圖上拖曳圖釘以調整位置。</p>
@@ -317,8 +317,8 @@
                             <input type="url" id="add-website" name="website" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="https://example.com">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">傳真</label>
-                            <input type="text" id="add-fax" name="fax" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                            <label class="block text-sm font-medium text-gray-700">LINE帳號</label>
+                            <input type="text" id="add-line" name="line" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm">
                         </div>
                     </div>
                 </form>
@@ -372,6 +372,17 @@
                 <button id="close-product-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
             </div>
             <div id="product-modal-content" class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar whitespace-pre-wrap"></div>
+        </div>
+    </div>
+
+    <!-- 營業時間 Modal -->
+    <div id="hours-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h2 id="hours-modal-title" class="text-xl font-bold text-gray-800">營業時間</h2>
+                <button id="close-hours-modal" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+            </div>
+            <div id="hours-modal-content" class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar whitespace-pre-wrap"></div>
         </div>
     </div>
     
@@ -567,7 +578,7 @@
             let userProfile = {};
             let isAdmin = false; 
             
-            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzCvwSU0lm6r01UxVtljbKAEEhn6dbW6KaUcwy0m40aGHC1NF3Z3T3CPitVjNk_HP4JQw/exec';
+            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyeBkQHGERCQpMbFIxhXaBMSuWAwrFWMcnz6T2RD-y5Tun6bucp2IjH2LJPYi5a-GkL/exec';
             
             const visibilityThreshold = 16.5; 
 
@@ -634,7 +645,7 @@
                                     contact: data['聯絡方式'], 
                                     hours: data['營業時間'], 
                                     product: data['公司產品'],
-                                    fax: data['傳真'], 
+                                    line: data['LINE帳號'],
                                     email: data['信箱'],
                                     website: data['網頁'], 
                                     lon: lon, 
@@ -701,31 +712,87 @@
                 });
             }
             
-            function isCurrentlyOpen(hoursString) {
-                if (!hoursString || typeof hoursString !== 'string') return false;
+            function getOpeningStatus(hoursString) {
+                if (!hoursString || typeof hoursString !== 'string') {
+                    return { status: 'unknown', message: '未提供', color: 'text-gray-500' };
+                }
+
+                const dayMap = { '日': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6 };
+                const dayNameMap = ['日', '一', '二', '三', '四', '五', '六'];
                 const now = new Date();
                 const currentDay = now.getDay();
                 const currentTime = now.getHours() * 100 + now.getMinutes();
-                const dayMap = { '日': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6 };
-                const parts = hoursString.split(/;|\s+/).filter(p => p);
-                for (const part of parts) {
-                    const match = part.match(/週([一二三四五六日])-([一二三四五六日])\s*(\d{2}):(\d{2})-(\d{2}):(\d{2})|(\d{2}):(\d{2})-(\d{2}):(\d{2})/);
-                    if (!match) continue;
-                    let startDay, endDay, startTime, endTime;
-                    if (match[1]) {
-                        startDay = dayMap[match[1]]; endDay = dayMap[match[2]];
-                        startTime = parseInt(match[3]) * 100 + parseInt(match[4]); endTime = parseInt(match[5]) * 100 + parseInt(match[6]);
-                    } else {
-                        startDay = 0; endDay = 6;
-                        startTime = parseInt(match[7]) * 100 + parseInt(match[8]); endTime = parseInt(match[9]) * 100 + parseInt(match[10]);
+
+                const timeSlots = hoursString.split(/;|\s+/).filter(p => p).map(part => {
+                    const match = part.match(/週([一二三四五六日])-([一二三四五六日])\s*(\d{2}):(\d{2})-(\d{2}):(\d{2})/);
+                    if (!match) return null;
+                    return {
+                        startDay: dayMap[match[1]],
+                        endDay: dayMap[match[2]],
+                        startTime: parseInt(match[3]) * 100 + parseInt(match[4]),
+                        endTime: parseInt(match[5]) * 100 + parseInt(match[6]),
+                        startTimeStr: `${match[3]}:${match[4]}`,
+                        endTimeStr: `${match[5]}:${match[6]}`,
+                    };
+                }).filter(Boolean);
+
+                if (timeSlots.length === 0) {
+                     return { status: 'unknown', message: '格式錯誤', color: 'text-gray-500' };
+                }
+
+                // Check if currently open
+                for (const slot of timeSlots) {
+                    let inDayRange = false;
+                    if (slot.endDay < slot.startDay) { // Wraps around the week (e.g., Fri-Tue)
+                        if (currentDay >= slot.startDay || currentDay <= slot.endDay) {
+                            inDayRange = true;
+                        }
+                    } else { // Normal range (e.g., Mon-Fri)
+                        if (currentDay >= slot.startDay && currentDay <= slot.endDay) {
+                            inDayRange = true;
+                        }
                     }
-                    if (currentDay >= startDay && currentDay <= endDay) {
-                         if (endTime < startTime) { if (currentTime >= startTime || currentTime < endTime) return true; }
-                         else { if (currentTime >= startTime && currentTime < endTime) return true; }
+
+                    if (inDayRange) {
+                         let inTimeRange = false;
+                         if(slot.endTime < slot.startTime) { // Overnight
+                             if(currentTime >= slot.startTime || currentTime < slot.endTime) {
+                                 inTimeRange = true;
+                             }
+                         } else { // Same day
+                             if(currentTime >= slot.startTime && currentTime < slot.endTime) {
+                                 inTimeRange = true;
+                             }
+                         }
+                         if(inTimeRange) {
+                             return { status: 'open', message: `營業中，最後營業時間：${slot.endTimeStr}`, color: 'text-green-600' };
+                         }
                     }
                 }
-                return false;
+
+                // If not open, find next opening time
+                for (let i = 0; i < 7; i++) {
+                    const nextDay = (currentDay + i) % 7;
+                    for (const slot of timeSlots) {
+                        let inDayRange = false;
+                        if (slot.endDay < slot.startDay) {
+                            if (nextDay >= slot.startDay || nextDay <= slot.endDay) inDayRange = true;
+                        } else {
+                            if (nextDay >= slot.startDay && nextDay <= slot.endDay) inDayRange = true;
+                        }
+
+                        if (inDayRange) {
+                            if (i > 0 || (i === 0 && currentTime < slot.startTime)) {
+                                const dayPrefix = i === 0 ? '' : `週${dayNameMap[nextDay]} `;
+                                return { status: 'closed', message: `已打烊，開始營業時間：${dayPrefix}${slot.startTimeStr}`, color: 'text-red-600' };
+                            }
+                        }
+                    }
+                }
+
+                return { status: 'closed', message: '已打烊', color: 'text-red-600' };
             }
+
             
             function applyFilters() {
                 const category = $('#category-select').val();
@@ -743,7 +810,7 @@
                 const finalFeatures = results.filter(feature => {
                     if (!feature.get('approved')) return false;
                     if (category && feature.get('category') !== category) return false;
-                    if (isOpenOnly && !isCurrentlyOpen(feature.get('hours'))) return false;
+                    if (isOpenOnly && getOpeningStatus(feature.get('hours')).status !== 'open') return false;
                     return true;
                 });
                 
@@ -765,6 +832,15 @@
                 updateStoreList(); 
             });
             $('#close-product-modal').on('click', () => $('#product-modal').addClass('hidden'));
+            $('#close-hours-modal').on('click', () => $('#hours-modal').addClass('hidden'));
+
+            $(document).on('click', '.open-hours-modal', function() {
+                const fullHours = $(this).data('full-hours').replace(/;/g, '\n');
+                $('#hours-modal-title').text($(this).data('name') + ' - 營業時間');
+                $('#hours-modal-content').text(fullHours);
+                $('#hours-modal').removeClass('hidden');
+            });
+
             $('#center-on-me-btn').on('click', () => {
                 if (userPositionCoords) map.getView().animate({ center: userPositionCoords, zoom: 16, duration: 800 });
                 else showNotification('無法定位您的位置。', 'warning');
@@ -861,6 +937,9 @@
             });
 
             map.on('dblclick', function(evt) {
+                if (window.innerWidth < 768) {
+                    return;
+                }
                 startAddLocationProcess(evt.coordinate);
             });
 
@@ -925,19 +1004,37 @@
                         let productDisplay = productText.length > 50 ? productText.substring(0, 50) + '...' : productText;
                         let showMoreBtn = productText.length > 50 ? `<button id="show-more-product" data-fulltext="${productText}" data-name="${data.name}" class="text-blue-500 hover:underline text-sm ml-1">顯示更多</button>` : '';
                         
+                        const openingStatus = getOpeningStatus(data.hours);
+                        const hoursHtml = `<p><strong>營業時間:</strong> <span class="font-bold ${openingStatus.color} cursor-pointer open-hours-modal" data-full-hours="${data.hours || ''}" data-name="${data.name}">${openingStatus.message}</span></p>`;
+
                         const buttonClass = "flex-1 flex items-center justify-center p-2 rounded-md transition-colors text-sm";
                         const activeClass = "bg-gray-200 hover:bg-gray-300 text-gray-800";
-                        const disabledClass = "bg-gray-100 text-gray-400 cursor-not-allowed";
-
                         let buttonsHtml = `<a href="${googleMapsUrl}" target="_blank" class="${buttonClass} ${activeClass}" title="導航"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></a>`;
-                        buttonsHtml += data.contact ? `<a href="tel:${data.contact}" class="${buttonClass} ${activeClass}" title="電話"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg></a>` : `<span class="${buttonClass} ${disabledClass}" title="無電話"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg></span>`;
-                        buttonsHtml += data.email ? `<a href="mailto:${data.email}" class="${buttonClass} ${activeClass}" title="信箱"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg></a>` : `<span class="${buttonClass} ${disabledClass}" title="無信箱"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg></span>`;
-                        buttonsHtml += data.website ? `<a href="${data.website}" target="_blank" class="${buttonClass} ${activeClass}" title="網站"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/></svg></a>` : `<span class="${buttonClass} ${disabledClass}" title="無網站"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/></svg></span>`;
+                        
+                        if(data.contact) {
+                            buttonsHtml += `<a href="tel:${data.contact}" class="${buttonClass} ${activeClass}" title="電話"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg></a>`;
+                        }
+                        if(data.email) {
+                            buttonsHtml += `<a href="mailto:${data.email}" class="${buttonClass} ${activeClass}" title="信箱"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg></a>`;
+                        }
+                        if(data.website) {
+                            buttonsHtml += `<a href="${data.website}" target="_blank" class="${buttonClass} ${activeClass}" title="網站"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/></svg></a>`;
+                        }
+                        if(data.line) {
+                            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                            const lineUrl = isMobile ? `line://ti/p/~${data.line}` : `https://line.me/ti/p/~${data.line}`;
+                            buttonsHtml += `<a href="${lineUrl}" target="_blank" class="${buttonClass} bg-green-100 hover:bg-green-200 text-green-700" title="LINE"><svg class="w-6 h-6" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-88a8,8,0,0,1-8-8V96a8,8,0,0,1,16,0v24A8,8,0,0,1,120,128Zm-40,0a8,8,0,0,1-8-8V96a8,8,0,0,1,16,0v24A8,8,0,0,1,80,128Zm88,0a8,8,0,0,1-8-8V96a8,8,0,0,1,16,0v24A8,8,0,0,1,168,128Zm-48,48c-20.65,0-36.43-14.4-36.43-32.23a8,8,0,0,1,16,0c0,10.13,8.43,16.23,20.43,16.23S140,154.13,140,143.77a8,8,0,0,1,16,0C156,161.6,140.65,176,120,176Z"/></svg></a>`;
+                        }
 
                         popupContent.innerHTML = `
                             <h3 class="text-lg font-bold text-gray-800">${data.name}</h3>
                             <p class="text-sm font-semibold mb-2" style="color: ${categoryColors[data.category] || categoryColors['其他']}">${data.category}</p>
-                            <div class="space-y-1 text-sm"><p><strong>地址:</strong> ${data.address}</p> <p><strong>聯絡方式:</strong> ${data.contact || '未提供'}</p> <p><strong>營業時間:</strong> ${data.hours || '未提供'}</p> <div><strong>公司產品:</strong> <span>${productDisplay}</span> ${showMoreBtn}</div> </div>
+                            <div class="space-y-1 text-sm">
+                                <p><strong>地址:</strong> ${data.address}</p>
+                                <p><strong>聯絡方式:</strong> ${data.contact || '未提供'}</p>
+                                ${hoursHtml}
+                                <div><strong>公司產品:</strong> <span>${productDisplay}</span> ${showMoreBtn}</div>
+                            </div>
                             <div class="mt-3 flex items-center gap-2">${buttonsHtml}</div>
                         `;
                         infoOverlay.setPosition(coordinates);
@@ -1090,7 +1187,8 @@
                     submitterEmail: userProfile.email || 'N/A',
                     adminEmail: userProfile.email, 
                     name: formData.get('name'), category: formData.get('category'), address: formData.get('address'),
-                    contact: formData.get('contact'), product: formData.get('product'), fax: formData.get('fax'),
+                    contact: formData.get('contact'), product: formData.get('product'), 
+                    line: formData.get('line'),
                     email: formData.get('email'), website: formData.get('website'), hours: hoursStrings.join('; '),
                     lon: lonLat[0], lat: lonLat[1],
                 };
@@ -1192,14 +1290,26 @@
                                      let productText = data.product || '';
                                      let productDisplay = productText.length > 50 ? productText.substring(0, 50) + '...' : productText;
                                      let showMoreBtn = productText.length > 50 ? `<button id="show-more-product" data-fulltext="${productText}" data-name="${data.name}" class="text-blue-500 hover:underline text-sm ml-1">顯示更多</button>` : '';
+                                     const openingStatus = getOpeningStatus(data.hours);
+                                     const hoursHtml = `<p><strong>營業時間:</strong> <span class="font-bold ${openingStatus.color} cursor-pointer open-hours-modal" data-full-hours="${data.hours || ''}" data-name="${data.name}">${openingStatus.message}</span></p>`;
                                      const buttonClass = "flex-1 flex items-center justify-center p-2 rounded-md transition-colors text-sm";
                                      const activeClass = "bg-gray-200 hover:bg-gray-300 text-gray-800";
-                                     const disabledClass = "bg-gray-100 text-gray-400 cursor-not-allowed";
                                      let buttonsHtml = `<a href="${googleMapsUrl}" target="_blank" class="${buttonClass} ${activeClass}" title="導航"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></a>`;
-                                     buttonsHtml += data.contact ? `<a href="tel:${data.contact}" class="${buttonClass} ${activeClass}" title="電話"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg></a>` : `<span class="${buttonClass} ${disabledClass}" title="無電話"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg></span>`;
-                                     buttonsHtml += data.email ? `<a href="mailto:${data.email}" class="${buttonClass} ${activeClass}" title="信箱"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg></a>` : `<span class="${buttonClass} ${disabledClass}" title="無信箱"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg></span>`;
-                                     buttonsHtml += data.website ? `<a href="${data.website}" target="_blank" class="${buttonClass} ${activeClass}" title="網站"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/></svg></a>` : `<span class="${buttonClass} ${disabledClass}" title="無網站"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/></svg></span>`;
-                                     popupContent.innerHTML = `<h3 class="text-lg font-bold text-gray-800">${data.name}</h3><p class="text-sm font-semibold mb-2" style="color: ${categoryColors[data.category] || categoryColors['其他']}">${data.category}</p><div class="space-y-1 text-sm"><p><strong>地址:</strong> ${data.address}</p> <p><strong>聯絡方式:</strong> ${data.contact || '未提供'}</p> <p><strong>營業時間:</strong> ${data.hours || '未提供'}</p> <div><strong>公司產品:</strong> <span>${productDisplay}</span> ${showMoreBtn}</div> </div><div class="mt-3 flex items-center gap-2">${buttonsHtml}</div>`;
+                                     if(data.contact) {
+                                        buttonsHtml += `<a href="tel:${data.contact}" class="${buttonClass} ${activeClass}" title="電話"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg></a>`;
+                                     }
+                                     if(data.email) {
+                                        buttonsHtml += `<a href="mailto:${data.email}" class="${buttonClass} ${activeClass}" title="信箱"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg></a>`;
+                                     }
+                                     if(data.website) {
+                                        buttonsHtml += `<a href="${data.website}" target="_blank" class="${buttonClass} ${activeClass}" title="網站"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/></svg></a>`;
+                                     }
+                                     if(data.line) {
+                                        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                                        const lineUrl = isMobile ? `line://ti/p/~${data.line}` : `https://line.me/ti/p/~${data.line}`;
+                                        buttonsHtml += `<a href="${lineUrl}" target="_blank" class="${buttonClass} bg-green-100 hover:bg-green-200 text-green-700" title="LINE"><svg class="w-6 h-6" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-88a8,8,0,0,1-8-8V96a8,8,0,0,1,16,0v24A8,8,0,0,1,120,128Zm-40,0a8,8,0,0,1-8-8V96a8,8,0,0,1,16,0v24A8,8,0,0,1,80,128Zm88,0a8,8,0,0,1-8-8V96a8,8,0,0,1,16,0v24A8,8,0,0,1,168,128Zm-48,48c-20.65,0-36.43-14.4-36.43-32.23a8,8,0,0,1,16,0c0,10.13,8.43,16.23,20.43,16.23S140,154.13,140,143.77a8,8,0,0,1,16,0C156,161.6,140.65,176,120,176Z"/></svg></a>`;
+                                     }
+                                     popupContent.innerHTML = `<h3 class="text-lg font-bold text-gray-800">${data.name}</h3><p class="text-sm font-semibold mb-2" style="color: ${categoryColors[data.category] || categoryColors['其他']}">${data.category}</p><div class="space-y-1 text-sm"><p><strong>地址:</strong> ${data.address}</p><p><strong>聯絡方式:</strong> ${data.contact || '未提供'}</p>${hoursHtml}<div><strong>公司產品:</strong> <span>${productDisplay}</span> ${showMoreBtn}</div></div><div class="mt-3 flex items-center gap-2">${buttonsHtml}</div>`;
                                  }, 200);
                              });
                              $listContent.append(listItem);
@@ -1378,13 +1488,13 @@
                         <hr>
                         <p><strong>地址:</strong> ${data.address}</p>
                         <p><strong>聯絡方式:</strong> ${data.contact}</p>
-                        <p><strong>營業時間:</strong> ${data.hours}</p>
+                        <p><strong>營業時間:</strong> ${data.hours || '未提供'}</p>
                         <p><strong>公司產品:</strong></p>
                         <p class="whitespace-pre-wrap bg-gray-50 p-2 rounded">${data.product}</p>
                         <hr>
                         ${formatOptional('信箱', data.email)}
                         ${formatOptional('網頁', data.website)}
-                        ${formatOptional('傳真', data.fax)}
+                        ${formatOptional('LINE帳號', data.line)}
                         <hr>
                         <p><strong>座標:</strong> ${data.lon ? data.lon.toFixed(5) : 'N/A'}, ${data.lat ? data.lat.toFixed(5) : 'N/A'}</p>
                         <p><strong>提交者:</strong> ${data.submitterName || 'N/A'} (${data.submitterEmail || 'N/A'})</p>
@@ -1440,25 +1550,17 @@
 
             function openEditModalForUser(featureToEdit) {
                 const data = featureToEdit.getProperties();
-                // Clear admin-specific fields
                 $('#edit-row-index').val('');
-                // Set user-specific fields for finding the row in the backend
                 $('#edit-original-name').val(data.name);
-                
-                // Hide the management modal FIRST
                 $('#management-modal').addClass('hidden');
-
                 fillEditModal(data);
                 $('#modal-title').text('編輯店家');
             }
 
             function openEditModalForAdmin(featureToEdit) {
                 const data = featureToEdit.getProperties();
-                // Clear user-specific fields
                 $('#edit-original-name').val('');
-                // Set admin-specific fields for finding the row in the backend
                 $('#edit-row-index').val(data.rowIndex);
-                
                 fillEditModal(data);
                 $('#modal-title').text('編輯店家 (管理員)');
             }
@@ -1471,7 +1573,7 @@
                 $('#add-product').val(data.product);
                 $('#add-email').val(data.email);
                 $('#add-website').val(data.website);
-                $('#add-fax').val(data.fax);
+                $('#add-line').val(data.line);
 
                 $('#hours-container').empty();
                 if (data.hours) {
