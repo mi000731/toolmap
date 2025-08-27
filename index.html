@@ -997,7 +997,7 @@
                         const coordinates = originalFeature.getGeometry().getCoordinates();
                         const data = originalFeature.getProperties();
                         
-                        map.getView().animate({ center: coordinates, zoom: 16, duration: 800 });
+                        map.getView().animate({ center: coordinates, zoom: 13, duration: 800 });
 
                         const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lon}`;
                         let productText = data.product || '';
