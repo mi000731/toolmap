@@ -1217,7 +1217,7 @@
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
                         userPositionCoords = ol.proj.fromLonLat([pos.coords.longitude, pos.coords.latitude]);
-                        map.getView().animate({ center: userPositionCoords, zoom: 16, duration: 1500 });
+                        map.getView().animate({ center: userPositionCoords, zoom: 13, duration: 1500 });
                         userLocationOverlay.setPosition(userPositionCoords);
                         $('#user-location').removeClass('hidden');
                     },
